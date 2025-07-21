@@ -8,6 +8,12 @@
     networking.domain = mkOption {
       type = types.str;
     };
+    # Allow unknown 'services' option to satisfy generated modules
+    services = mkOption {
+      type = types.attrsOf types.anything;
+      default = {};
+      description = "Dummy catch-all for generated services option.";
+    };
   };
 
   config = {

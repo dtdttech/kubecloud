@@ -27,8 +27,7 @@
     pkgs = import nixpkgs {
       inherit system;
     };
-  in {
-    nixidyEnvs = nixidy.lib.mkEnvs {
+    envs = nixidy.lib.mkEnvs {
       inherit pkgs;
       envs = {
         prod.modules = [
@@ -37,10 +36,10 @@
         ];
       };
     };
-
-    # Handy to have nixidy cli available in the local
-    # flake too.
+  in {
+    nixidyEnvs = envs;
     packages = {
+      default = envs.prod.environmentPackage;
       nixidy = nixidy.packages.${system}.default;
       generators = {
         cilium = nixidy.packages.${system}.generators.fromCRD {
