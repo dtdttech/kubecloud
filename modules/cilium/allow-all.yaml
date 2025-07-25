@@ -3,8 +3,8 @@ kind: CiliumClusterwideNetworkPolicy
 metadata:
   name: allow-all
 spec:
-  description: "TEMPORARY: allow all ingress and egress for all pods"
-  endpointSelector: {}  # Selects all pods
+  description: "TEMPORARY CLUSTER INIT: allow all ingress and egress for all pods"
+  endpointSelector: {}
   ingress:
     - fromEndpoints:
         - {}
