@@ -7,8 +7,6 @@
   cfg = config.networking.traefik;
 
   namespace = "traefik";
-  _ = builtins.trace charts ;
-
   values =
     lib.attrsets.recursiveUpdate {
       # Create an ingress class.
