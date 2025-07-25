@@ -3,6 +3,7 @@
     # ./argocd
     ./cilium
     ./traefik
+    ./eso
     ./prometheus
   ];
   options = with lib; {
