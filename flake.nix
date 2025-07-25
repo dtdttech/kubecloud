@@ -30,10 +30,15 @@
     envs = nixidy.lib.mkEnvs {
       inherit pkgs;
       envs = {
-        prod.modules = [
-          ./modules
-          ./env/prod.nix
-        ];
+        prod = {
+          specialArgs = {
+            charts = nixhelm.chartsDerivations.${system};
+          };
+          modules = [
+            ./modules
+            ./env/prod.nix
+          ];
+        };
       };
     };
   in {

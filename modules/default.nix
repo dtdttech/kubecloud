@@ -1,4 +1,4 @@
-{lib, ...}: {
+{lib, charts, ...}: {
   imports = [
     ./cilium
     ./traefik
@@ -19,8 +19,6 @@
   config = {
     nixidy = {
       target.repository = "https://github.com/arnarg/cluster.git";
-
-      chartsDir = ../charts;
 
       defaults = {
         syncPolicy = {

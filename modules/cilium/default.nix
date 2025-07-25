@@ -5,7 +5,7 @@
   ...
 }: let
   cfg = config.networking.cilium;
-
+  
   namespace = "kube-system";
 
   values =
