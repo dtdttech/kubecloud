@@ -1,9 +1,8 @@
-{lib, charts, ...}: {
+{lib, charts, ...}@args: {
   imports = [
     ./cilium
-    ./traefik
+    (import ./traefik args)
   ];
-
   options = with lib; {
     networking.domain = mkOption {
       type = types.str;
@@ -18,8 +17,6 @@
 
   config = {
     nixidy = {
-      target.repository = "https://github.com/arnarg/cluster.git";
-
       defaults = {
         syncPolicy = {
           autoSync = {

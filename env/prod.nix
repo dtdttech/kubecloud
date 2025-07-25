@@ -3,7 +3,7 @@
     target = {
       repository = "https://git-ce.rwth-aachen.de/daniel.thomas/kube-cluster.git";
       branch = "master";
-      rootPath = "./";
+      rootPath = "./rendered";
     };
     extraFiles."README.md".text = ''
       # Rendered manifests

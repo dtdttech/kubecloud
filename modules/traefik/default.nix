@@ -7,6 +7,7 @@
   cfg = config.networking.traefik;
 
   namespace = "traefik";
+  _ = builtins.trace charts ;
 
   values =
     lib.attrsets.recursiveUpdate {
@@ -53,11 +54,11 @@
       };
 
       # Setup storage for acme data.
-      persistence = {
-        enabled = true;
-        storageClass = config.storage.csi.nfs.storageClassName;
-        subPath = "traefik";
-      };
+      # persistence = {
+      #   enabled = true;
+      #   # storageClass = config.storage.csi.nfs.storageClassName;
+      #   subPath = "traefik";
+      # };
 
       # Setup fs group for file system permissions.
       podSecurityContext.fsGroup = 2000;
@@ -126,7 +127,7 @@ in {
       };
 
       # 1password secret with ACME credentials
-      opSecrets.acme-creds.itemName = "traefik_acme";
+      # opSecrets.acme-creds.itemName = "traefik_acme";
 
       resources = {
         # Network policy allowing tailscale proxy to

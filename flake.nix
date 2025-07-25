@@ -29,10 +29,11 @@
     };
     envs = nixidy.lib.mkEnvs {
       inherit pkgs;
+      charts = nixhelm.chartsDerivations.${system};
       envs = {
         prod = {
           specialArgs = {
-            charts = nixhelm.chartsDerivations.${system};
+            
           };
           modules = [
             ./modules
