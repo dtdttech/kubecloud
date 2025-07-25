@@ -84,20 +84,6 @@
             "charts/crds/crds/crd-thanosrulers.yaml"
           ];
         };
-        external-secrets = nixidy.packages.${system}.generators.fromCRD {
-          name = "external-secrets";
-          src = nixhelm.chartsDerivations.${system}."external-secrets"."external-secrets";
-          crds = [
-            # "templates/crds/externalsecret.yaml"
-            "templates/crds/secretstore.yaml"
-            "templates/crds/clustersecretstore.yaml"
-            # optional extras:
-            # "templates/crds/clusterexternalsecret.yaml"
-            # "templates/crds/generatorstate.yaml"
-            # "templates/crds/vaultdynamicsecret.yaml"
-            # "templates/crds/webhook.yaml"          
-          ];
-        };
       };
     };
     apps = {
@@ -110,7 +96,6 @@
             cat ${self.packages.${system}.generators.cilium} > modules/cilium/generated.nix
             cat ${self.packages.${system}.generators.traefik} > modules/traefik/generated.nix
             cat ${self.packages.${system}.generators.prometheus} > modules/prometheus/generated.nix
-            cat ${self.packages.${system}.generators.external-secrets} > modules/eso/generated.nix
           '')
           .outPath;
       };
