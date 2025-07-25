@@ -1,8 +1,9 @@
 {lib, charts, ...}@args: {
   imports = [
-    ./argocd
+    # ./argocd
     ./cilium
     ./traefik
+    ./prometheus
   ];
   options = with lib; {
     networking.domain = mkOption {

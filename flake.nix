@@ -32,9 +32,6 @@
       charts = nixhelm.chartsDerivations.${system};
       envs = {
         prod = {
-          specialArgs = {
-            
-          };
           modules = [
             ./modules
             ./env/prod.nix
