@@ -9,7 +9,7 @@ spec:
     server: https://kubernetes.default.svc
   project: default
   source:
-    path: ./demo
+    path: ./rendered/demo
     repoURL: https://git-ce.rwth-aachen.de/daniel.thomas/kube-cluster.git
     targetRevision: master
   syncPolicy:

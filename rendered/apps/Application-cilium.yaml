@@ -11,7 +11,7 @@ spec:
     server: https://kubernetes.default.svc
   project: default
   source:
-    path: ./cilium
+    path: ./rendered/cilium
     repoURL: https://git-ce.rwth-aachen.de/daniel.thomas/kube-cluster.git
     targetRevision: master
   syncPolicy:

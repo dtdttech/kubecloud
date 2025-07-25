@@ -9,7 +9,7 @@ spec:
     server: https://kubernetes.default.svc
   project: default
   source:
-    path: ./traefik
+    path: ./rendered/traefik
     repoURL: https://git-ce.rwth-aachen.de/daniel.thomas/kube-cluster.git
     targetRevision: master
   syncPolicy:
