@@ -1,6 +1,6 @@
 {lib, charts, ...}@args: {
   imports = [
-    # ./argocd
+    ./argocd
     ./cilium
     ./traefik
     ./external-secrets
@@ -11,11 +11,11 @@
       type = types.str;
     };
     # Allow unknown 'services' option to satisfy generated modules
-    services = mkOption {
-      type = types.attrsOf types.anything;
-      default = {};
-      description = "Dummy catch-all for generated services option.";
-    };
+    # services = mkOption {
+    #   type = types.attrsOf types.anything;
+    #   default = {};
+    #   description = "Dummy catch-all for generated services option.";
+    # };
   };
 
   config = {
