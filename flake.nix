@@ -73,17 +73,18 @@
         };
         prometheus = nixidy.packages.${system}.generators.fromCRD {
           name = "prometheus";
-          src = nixhelm.chartsDerivations.${system}."prometheus-community".prometheus;
+          src = nixhelm.chartsDerivations.${system}."prometheus-community"."kube-prometheus-stack";
           crds = [
-            "templates/crds/crd-alertmanagerconfigs.yaml"
-            "templates/crds/crd-alertmanagers.yaml"
-            "templates/crds/crd-podmonitors.yaml"
-            "templates/crds/crd-probes.yaml"
-            "templates/crds/crd-prometheusagents.yaml"
-            "templates/crds/crd-prometheuses.yaml"
-            "templates/crds/crd-prometheusrules.yaml"
-            "templates/crds/crd-servicemonitors.yaml"
-            "templates/crds/crd-thanosrulers.yaml"
+            # "charts/crds/crds/crd-alertmanagerconfigs.yaml" #todo needs fixups
+            "charts/crds/crds/crd-alertmanagers.yaml"
+            "charts/crds/crds/crd-podmonitors.yaml"
+            "charts/crds/crds/crd-probes.yaml"
+            "charts/crds/crds/crd-prometheusagents.yaml"
+            "charts/crds/crds/crd-prometheuses.yaml"
+            "charts/crds/crds/crd-prometheusrules.yaml"
+            "charts/crds/crds/crd-scrapeconfigs.yaml"
+            "charts/crds/crds/crd-servicemonitors.yaml"
+            "charts/crds/crds/crd-thanosrulers.yaml"
           ];
         };
       };
