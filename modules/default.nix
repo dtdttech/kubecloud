@@ -1,7 +1,8 @@
 {lib, charts, ...}@args: {
   imports = [
+    ./argocd
     ./cilium
-    (import ./traefik args)
+    ./traefik
   ];
   options = with lib; {
     networking.domain = mkOption {

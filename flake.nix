@@ -71,6 +71,21 @@
             "crds/traefik.io_traefikservices.yaml"
           ];
         };
+        prometheus = nixidy.packages.${system}.generators.fromCRD {
+          name = "prometheus";
+          src = nixhelm.chartsDerivations.${system}."prometheus-community".prometheus;
+          crds = [
+            "templates/crds/crd-alertmanagerconfigs.yaml"
+            "templates/crds/crd-alertmanagers.yaml"
+            "templates/crds/crd-podmonitors.yaml"
+            "templates/crds/crd-probes.yaml"
+            "templates/crds/crd-prometheusagents.yaml"
+            "templates/crds/crd-prometheuses.yaml"
+            "templates/crds/crd-prometheusrules.yaml"
+            "templates/crds/crd-servicemonitors.yaml"
+            "templates/crds/crd-thanosrulers.yaml"
+          ];
+        };
       };
     };
     apps = {
@@ -82,6 +97,7 @@
             mkdir -p modules/cilium modules/traefik
             cat ${self.packages.${system}.generators.cilium} > modules/cilium/generated.nix
             cat ${self.packages.${system}.generators.traefik} > modules/traefik/generated.nix
+            cat ${self.packages.${system}.generators.prometheus} > modules/prometheus/generated.nix
           '')
           .outPath;
       };
