@@ -10,13 +10,8 @@
 
   values =
     lib.attrsets.recursiveUpdate {
-      operator.replicas = 1;
-
-      # Having this enabled breaks DNS proxying in
-      # my cluster because the hosts are IPv6 enabled
-      # but Cilium isn't.
-      # See: https://github.com/cilium/cilium/issues/31197
-      dnsProxy.enableTransparentMode = false;
+      operator.replicas = 2;
+      dnsProxy.enableTransparentMode = true;
 
       # Default CIDR in k3s.
       ipam.operator.clusterPoolIPv4PodCIDRList = ["10.42.0.0/16"];
@@ -41,12 +36,9 @@
       socketLB.hostNamespaceOnly = true;
       bpf.lbExternalClusterIP = true;
 
-      # Enable Hubble UI.
       hubble = {
         relay.enabled = true;
         ui.enabled = true;
-        # This should be used so the rendered manifest
-        # doesn't contain TLS secrets.
         tls.auto.method = "cronJob";
       };
     }
