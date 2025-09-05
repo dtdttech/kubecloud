@@ -12,6 +12,13 @@
     lib.attrsets.recursiveUpdate {
       operator.replicas = 2;
       dnsProxy.enableTransparentMode = true;
+      
+      # Cluster configuration  
+      cluster.name = "default";
+      cluster.id = 0;
+      
+      # Cluster domain configuration
+      clusterDomain = "cluster.dtdt.tech";
 
       # Default CIDR in k3s.
       ipam.operator.clusterPoolIPv4PodCIDRList = ["10.42.0.0/16"];
