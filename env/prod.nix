@@ -2,7 +2,7 @@
   nixidy = {
     bootstrapManifest.enable = true;
     target = {
-      repository = "git@github.com:dtdttech/kubecloud.git";
+      repository = "https://github.com/dtdttech/kubecloud.git";
       branch = "master";
       rootPath = "./rendered";
     };
