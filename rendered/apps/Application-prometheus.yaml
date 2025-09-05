@@ -1,15 +1,15 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: apps
+  name: prometheus
   namespace: argocd
 spec:
   destination:
-    namespace: argocd
+    namespace: monitoring
     server: https://kubernetes.default.svc
   project: default
   source:
-    path: ./rendered/apps
+    path: ./rendered/prometheus
     repoURL: https://github.com/dtdttech/kubecloud.git
     targetRevision: master
   syncPolicy:
