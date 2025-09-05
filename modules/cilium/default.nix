@@ -47,6 +47,8 @@
         relay.enabled = true;
         ui.enabled = true;
         tls.auto.method = "cronJob";
+        relay.cluster.name = "default";
+        relay.peerService = "hubble-peer.kube-system.svc.cluster.dtdt.tech:4244";
       };
     }
     cfg.values;
