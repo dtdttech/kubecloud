@@ -2,7 +2,7 @@
   nixidy = {
     bootstrapManifest.enable = true;
     target = {
-      repository = "https://git-ce.rwth-aachen.de/daniel.thomas/kube-cluster.git";
+      repository = "git@github.com:dtdttech/kubecloud.git";
       branch = "master";
       rootPath = "./rendered";
     };

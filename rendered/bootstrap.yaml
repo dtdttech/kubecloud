@@ -1,18 +1,1 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: apps
-  namespace: argocd
-spec:
-  destination:
-    namespace: argocd
-    server: https://kubernetes.default.svc
-  project: default
-  source:
-    path: ./rendered/apps
-    repoURL: https://git-ce.rwth-aachen.de/daniel.thomas/kube-cluster.git
-    targetRevision: master
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
+/nix/store/zgap4pgsfcc2q78dww8rhvi86yrwck2l-nixidy-app-__bootstrap/Application-apps.yaml
