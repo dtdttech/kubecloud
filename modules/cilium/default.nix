@@ -16,9 +16,6 @@
       # Cluster configuration  
       cluster.name = "default";
       cluster.id = 0;
-      
-      # Cluster domain configuration
-      clusterDomain = "cluster.dtdt.tech";
 
       # Default CIDR in k3s.
       ipam.operator.clusterPoolIPv4PodCIDRList = ["10.42.0.0/16"];
@@ -47,8 +44,6 @@
         relay.enabled = true;
         ui.enabled = true;
         tls.auto.method = "cronJob";
-        relay.cluster.name = "default";
-        relay.peerService = "hubble-peer.kube-system.svc.cluster.dtdt.tech:4244";
       };
     }
     cfg.values;
