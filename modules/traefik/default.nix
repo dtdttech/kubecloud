@@ -41,12 +41,8 @@
       # Setup cert resolver for lets encrypt.
       certificatesResolvers.letsencrypt.acme = {
         email = "acme@codedbearder.com";
-        dnsChallenge = {
-          provider = "cloudflare";
-          resolvers = [
-            "anirban.ns.cloudflare.com:53"
-            "chin.ns.cloudflare.com:53"
-          ];
+        httpChallenge = {
+          entryPoint = "web";
         };
         storage = "/data/acme.json";
       };
@@ -87,15 +83,7 @@
         }
       ];
 
-      # Traefik needs to get credentials for cloudflare API.
-      # This secret needs to be created before deploying this
-      # application out of band.
-      # Key name is `CF_DNS_API_TOKEN`.
-      envFrom = [
-        {
-          secretRef.name = "acme-creds";
-        }
-      ];
+      # No environment secrets needed for HTTP challenge
     }
     cfg.values;
 in {
