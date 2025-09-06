@@ -169,8 +169,6 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    nixidy.applicationImports = [./generated.nix];
-    
     applications.nextcloud = {
       inherit namespace;
       createNamespace = true;

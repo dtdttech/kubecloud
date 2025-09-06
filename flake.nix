@@ -89,16 +89,16 @@
           src = nixhelm.chartsDerivations.${system}.grafana.grafana;
           crds = [];
         };
-        nextcloud = nixidy.packages.${system}.generators.fromCRD {
-          name = "nextcloud";
-          src = pkgs.fetchFromGitHub {
-            owner = "nextcloud";
-            repo = "helm";
-            rev = "nextcloud-5.5.2";
-            hash = "sha256-b8qUrRUj9YJP6mEEuDBlzpKViQzyQ3JsQuaq1143kX0=";
-          } + "/charts/nextcloud";
-          crds = [];
-        };
+# nextcloud = nixidy.packages.${system}.generators.fromCRD {
+        #   name = "nextcloud";
+        #   src = pkgs.fetchFromGitHub {
+        #     owner = "nextcloud";
+        #     repo = "helm";
+        #     rev = "nextcloud-5.5.2";
+        #     hash = "sha256-b8qUrRUj9YJP6mEEuDBlzpKViQzyQ3JsQuaq1143kX0=";
+        #   } + "/charts/nextcloud";
+        #   crds = [];
+        # };
       };
     };
     apps = {
@@ -112,7 +112,7 @@
             cat ${self.packages.${system}.generators.traefik} > modules/traefik/generated.nix
             cat ${self.packages.${system}.generators.prometheus} > modules/prometheus/generated.nix
             cat ${self.packages.${system}.generators.grafana} > modules/grafana/generated.nix
-            cat ${self.packages.${system}.generators.nextcloud} > modules/nextcloud/generated.nix
+            # cat ${self.packages.${system}.generators.nextcloud} > modules/nextcloud/generated.nix
           '')
           .outPath;
       };

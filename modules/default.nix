@@ -6,7 +6,8 @@
     ./external-secrets
     ./prometheus
     ./grafana
-    ./nextcloud
+    # ./nextcloud
+    ./passbolt
   ];
   options = with lib; {
     networking.domain = mkOption {
