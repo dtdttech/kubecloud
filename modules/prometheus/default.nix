@@ -41,6 +41,7 @@ in
     
     applications.prometheus = {
       inherit namespace;
+      createNamespace = true;
 
       helm.releases.prometheus = {
         chart = charts.prometheus-community.prometheus;
