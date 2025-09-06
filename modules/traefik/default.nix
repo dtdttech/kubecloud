@@ -118,6 +118,7 @@ in {
   config = lib.mkIf cfg.enable {
     applications.traefik = {
       inherit namespace;
+      createNamespace = true;
 
       helm.releases.traefik = {
         inherit values;
