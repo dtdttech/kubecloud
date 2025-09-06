@@ -1,7 +1,7 @@
 {lib, charts, ...}@args: {
   imports = [
-    ./argocd
-    ./cilium
+    # ./argocd
+    # ./cilium
     ./traefik
     ./external-secrets
     ./prometheus
