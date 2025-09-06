@@ -84,6 +84,11 @@
             "charts/crds/crds/crd-thanosrulers.yaml"
           ];
         };
+        grafana = nixidy.packages.${system}.generators.fromCRD {
+          name = "grafana";
+          src = nixhelm.chartsDerivations.${system}.grafana.grafana;
+          crds = [];
+        };
       };
     };
     apps = {
@@ -92,10 +97,11 @@
         program =
           (pkgs.writeShellScript "generate-modules" ''
             set -eo pipefail
-            mkdir -p modules/cilium modules/traefik
+            mkdir -p modules/cilium modules/traefik modules/grafana
             cat ${self.packages.${system}.generators.cilium} > modules/cilium/generated.nix
             cat ${self.packages.${system}.generators.traefik} > modules/traefik/generated.nix
             cat ${self.packages.${system}.generators.prometheus} > modules/prometheus/generated.nix
+            cat ${self.packages.${system}.generators.grafana} > modules/grafana/generated.nix
           '')
           .outPath;
       };

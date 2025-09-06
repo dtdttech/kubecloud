@@ -5,6 +5,7 @@
     ./traefik
     ./external-secrets
     ./prometheus
+    ./grafana
   ];
   options = with lib; {
     networking.domain = mkOption {
