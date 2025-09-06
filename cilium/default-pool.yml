@@ -1,0 +1,9 @@
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: default-pool
+spec:
+  blocks:
+  - cidr: "82.165.93.59/32"    # pollux IP
+  - cidr: "217.154.197.159/32" # antari IP  
+  - cidr: "212.132.88.73/32"   # merami IP

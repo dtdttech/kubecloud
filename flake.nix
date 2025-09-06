@@ -89,6 +89,16 @@
           src = nixhelm.chartsDerivations.${system}.grafana.grafana;
           crds = [];
         };
+        nextcloud = nixidy.packages.${system}.generators.fromCRD {
+          name = "nextcloud";
+          src = pkgs.fetchFromGitHub {
+            owner = "nextcloud";
+            repo = "helm";
+            rev = "nextcloud-5.5.2";
+            hash = "sha256-b8qUrRUj9YJP6mEEuDBlzpKViQzyQ3JsQuaq1143kX0=";
+          } + "/charts/nextcloud";
+          crds = [];
+        };
       };
     };
     apps = {
@@ -97,11 +107,12 @@
         program =
           (pkgs.writeShellScript "generate-modules" ''
             set -eo pipefail
-            mkdir -p modules/cilium modules/traefik modules/grafana
+            mkdir -p modules/cilium modules/traefik modules/grafana modules/nextcloud
             cat ${self.packages.${system}.generators.cilium} > modules/cilium/generated.nix
             cat ${self.packages.${system}.generators.traefik} > modules/traefik/generated.nix
             cat ${self.packages.${system}.generators.prometheus} > modules/prometheus/generated.nix
             cat ${self.packages.${system}.generators.grafana} > modules/grafana/generated.nix
+            cat ${self.packages.${system}.generators.nextcloud} > modules/nextcloud/generated.nix
           '')
           .outPath;
       };

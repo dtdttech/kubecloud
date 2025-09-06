@@ -6,6 +6,7 @@
     ./external-secrets
     ./prometheus
     ./grafana
+    ./nextcloud
   ];
   options = with lib; {
     networking.domain = mkOption {
