@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: passbolt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+      component: database
+  template:
+    metadata:
+      labels:
+        app: mysql
+        component: database
+    spec:
+      containers:
+        - env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: rootpassword123
+            - name: MYSQL_DATABASE
+              value: passbolt
+            - name: MYSQL_USER
+              value: passbolt
+            - name: MYSQL_PASSWORD
+              value: passbolt123
+          image: mysql:8.0
+          name: mysql
+          ports:
+            - containerPort: 3306
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: mysql-storage
+      volumes:
+        - name: mysql-storage
+          persistentVolumeClaim:
+            claimName: mysql-pvc

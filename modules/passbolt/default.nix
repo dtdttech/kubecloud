@@ -1,12 +1,12 @@
 { lib, config, ... }:
 
 let
-  cfg = config.applications.passbolt;
+  cfg = config.security.passbolt;
 
   namespace = "passbolt";
 in
 {
-  options.applications.passbolt = with lib; {
+  options.security.passbolt = with lib; {
     enable = mkOption {
       type = types.bool;
       default = true;
@@ -270,7 +270,6 @@ in
         ingresses.passbolt = {
           metadata.annotations = {
             "traefik.ingress.kubernetes.io/router.tls" = "true";
-            "traefik.ingress.kubernetes.io/router.middlewares" = "passbolt-headers@kubernetescrd";
           };
           spec = {
             ingressClassName = "traefik";
@@ -292,17 +291,14 @@ in
           };
         };
 
-        # Middleware for security headers
-        middlewares.headers = {
-          spec.headers = {
-            customRequestHeaders = {
-              "X-Forwarded-Proto" = "https";
-            };
-            customResponseHeaders = {
-              "X-Frame-Options" = "DENY";
-              "X-Content-Type-Options" = "nosniff";
-              "Referrer-Policy" = "same-origin";
-            };
+        # ConfigMap for additional configuration if needed
+        configMaps.passbolt-config = {
+          data = {
+            "nginx.conf" = ''
+              add_header X-Frame-Options DENY;
+              add_header X-Content-Type-Options nosniff;
+              add_header Referrer-Policy same-origin;
+            '';
           };
         };
       };
