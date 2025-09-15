@@ -8,6 +8,7 @@
     ./grafana
     # ./nextcloud
     ./passbolt
+    ./librebooking
   ];
   options = with lib; {
     networking.domain = mkOption {
