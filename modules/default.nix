@@ -11,6 +11,7 @@
     ./librebooking
     ./bookstack
     ./keycloak
+    ./acme-dns
   ];
   options = with lib; {
     networking.domain = mkOption {
