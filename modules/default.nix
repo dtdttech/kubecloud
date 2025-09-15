@@ -9,6 +9,7 @@
     # ./nextcloud
     ./passbolt
     ./librebooking
+    ./bookstack
   ];
   options = with lib; {
     networking.domain = mkOption {

@@ -1,0 +1,313 @@
+{ lib, config, ... }:
+
+let
+  cfg = config.documentation.bookstack;
+
+  namespace = "bookstack";
+in
+{
+  options.documentation.bookstack = with lib; {
+    enable = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Enable BookStack documentation platform";
+    };
+
+    domain = mkOption {
+      type = types.str;
+      default = "bookstack.local";
+      description = "Domain for BookStack instance";
+    };
+
+    timezone = mkOption {
+      type = types.str;
+      default = "UTC";
+      description = "Timezone for BookStack";
+    };
+
+    database = {
+      host = mkOption {
+        type = types.str;
+        default = "mariadb.${namespace}.svc.cluster.local";
+        description = "Database host for BookStack";
+      };
+
+      name = mkOption {
+        type = types.str;
+        default = "bookstack";
+        description = "Database name for BookStack";
+      };
+
+      user = mkOption {
+        type = types.str;
+        default = "bookstack";
+        description = "Database user for BookStack";
+      };
+
+      password = mkOption {
+        type = types.str;
+        default = "bookstack123";
+        description = "Database password for BookStack";
+      };
+    };
+
+    app = {
+      key = mkOption {
+        type = types.str;
+        default = "base64:H+eX8SaXwaCTY7jKDfXDfm2NvGV9RkSKzGHvwdHvz/w=";
+        description = "Application encryption key for BookStack";
+      };
+    };
+  };
+
+  config = lib.mkIf cfg.enable {
+    applications.bookstack = {
+      inherit namespace;
+      createNamespace = true;
+
+      resources = {
+        # MariaDB Database for BookStack
+        deployments.mariadb = {
+          spec = {
+            replicas = 1;
+            selector.matchLabels = {
+              app = "mariadb";
+              component = "database";
+            };
+            template = {
+              metadata.labels = {
+                app = "mariadb";
+                component = "database";
+              };
+              spec = {
+                containers = [{
+                  name = "mariadb";
+                  image = "mariadb:11.4";
+                  env = [
+                    {
+                      name = "MYSQL_ROOT_PASSWORD";
+                      value = "rootpassword123";
+                    }
+                    {
+                      name = "MYSQL_DATABASE";
+                      value = cfg.database.name;
+                    }
+                    {
+                      name = "MYSQL_USER";
+                      value = cfg.database.user;
+                    }
+                    {
+                      name = "MYSQL_PASSWORD";
+                      value = cfg.database.password;
+                    }
+                  ];
+                  ports = [{
+                    containerPort = 3306;
+                  }];
+                  volumeMounts = [{
+                    name = "mariadb-storage";
+                    mountPath = "/var/lib/mysql";
+                  }];
+                  resources = {
+                    requests = {
+                      memory = "256Mi";
+                      cpu = "250m";
+                    };
+                    limits = {
+                      memory = "512Mi";
+                      cpu = "500m";
+                    };
+                  };
+                }];
+                volumes = [{
+                  name = "mariadb-storage";
+                  persistentVolumeClaim.claimName = "mariadb-pvc";
+                }];
+              };
+            };
+          };
+        };
+
+        # MariaDB Service
+        services.mariadb = {
+          spec = {
+            selector = {
+              app = "mariadb";
+              component = "database";
+            };
+            ports = [{
+              port = 3306;
+              targetPort = 3306;
+            }];
+          };
+        };
+
+        # MariaDB PVC
+        persistentVolumeClaims.mariadb-pvc = {
+          spec = {
+            accessModes = ["ReadWriteOnce"];
+            resources.requests.storage = "20Gi";
+          };
+        };
+
+        # BookStack Application
+        deployments.bookstack = {
+          spec = {
+            replicas = 1;
+            selector.matchLabels = {
+              app = "bookstack";
+              component = "app";
+            };
+            template = {
+              metadata.labels = {
+                app = "bookstack";
+                component = "app";
+              };
+              spec = {
+                initContainers = [{
+                  name = "wait-for-mariadb";
+                  image = "busybox:1.36";
+                  command = [
+                    "sh"
+                    "-c"
+                    "until nc -z mariadb.${namespace}.svc.cluster.local 3306; do echo waiting for mariadb; sleep 2; done;"
+                  ];
+                }];
+                containers = [{
+                  name = "bookstack";
+                  image = "lscr.io/linuxserver/bookstack:latest";
+                  env = [
+                    {
+                      name = "PUID";
+                      value = "1000";
+                    }
+                    {
+                      name = "PGID";
+                      value = "1000";
+                    }
+                    {
+                      name = "TZ";
+                      value = cfg.timezone;
+                    }
+                    {
+                      name = "APP_URL";
+                      value = "https://${cfg.domain}";
+                    }
+                    {
+                      name = "APP_KEY";
+                      value = cfg.app.key;
+                    }
+                    {
+                      name = "DB_HOST";
+                      value = cfg.database.host;
+                    }
+                    {
+                      name = "DB_PORT";
+                      value = "3306";
+                    }
+                    {
+                      name = "DB_USERNAME";
+                      value = cfg.database.user;
+                    }
+                    {
+                      name = "DB_PASSWORD";
+                      value = cfg.database.password;
+                    }
+                    {
+                      name = "DB_DATABASE";
+                      value = cfg.database.name;
+                    }
+                  ];
+                  ports = [{
+                    containerPort = 80;
+                  }];
+                  volumeMounts = [{
+                    name = "bookstack-config";
+                    mountPath = "/config";
+                  }];
+                  resources = {
+                    requests = {
+                      memory = "512Mi";
+                      cpu = "300m";
+                    };
+                    limits = {
+                      memory = "1Gi";
+                      cpu = "1000m";
+                    };
+                  };
+                  livenessProbe = {
+                    httpGet = {
+                      path = "/";
+                      port = 80;
+                    };
+                    initialDelaySeconds = 60;
+                    periodSeconds = 30;
+                  };
+                  readinessProbe = {
+                    httpGet = {
+                      path = "/";
+                      port = 80;
+                    };
+                    initialDelaySeconds = 30;
+                    periodSeconds = 10;
+                  };
+                }];
+                volumes = [{
+                  name = "bookstack-config";
+                  persistentVolumeClaim.claimName = "bookstack-config-pvc";
+                }];
+              };
+            };
+          };
+        };
+
+        # BookStack Service
+        services.bookstack = {
+          spec = {
+            selector = {
+              app = "bookstack";
+              component = "app";
+            };
+            ports = [{
+              port = 80;
+              targetPort = 80;
+            }];
+          };
+        };
+
+        # BookStack PVC
+        persistentVolumeClaims.bookstack-config-pvc = {
+          spec = {
+            accessModes = ["ReadWriteOnce"];
+            resources.requests.storage = "5Gi";
+          };
+        };
+
+        # Ingress for BookStack
+        ingresses.bookstack = {
+          metadata.annotations = {
+            "traefik.ingress.kubernetes.io/router.tls" = "true";
+          };
+          spec = {
+            ingressClassName = "traefik";
+            tls = [{
+              secretName = "bookstack-tls";
+              hosts = [cfg.domain];
+            }];
+            rules = [{
+              host = cfg.domain;
+              http.paths = [{
+                path = "/";
+                pathType = "Prefix";
+                backend.service = {
+                  name = "bookstack";
+                  port.number = 80;
+                };
+              }];
+            }];
+          };
+        };
+      };
+    };
+  };
+}
