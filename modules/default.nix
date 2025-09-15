@@ -12,6 +12,7 @@
     ./bookstack
     ./keycloak
     ./acme-dns
+    ./zammad
   ];
   options = with lib; {
     networking.domain = mkOption {
