@@ -10,6 +10,7 @@
     ./passbolt
     ./librebooking
     ./bookstack
+    ./keycloak
   ];
   options = with lib; {
     networking.domain = mkOption {
