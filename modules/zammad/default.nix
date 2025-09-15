@@ -296,7 +296,7 @@ in
                 containers = [{
                   name = "zammad-init";
                   image = "ghcr.io/zammad/zammad:${cfg.version}";
-                  command = ["zammad", "run", "rails", "r", "Setting.set('system_init_done', true)"];
+                  command = ["zammad" "run" "rails" "r" "Setting.set('system_init_done', true)"];
                   env = [
                     {
                       name = "POSTGRES_HOST";
@@ -359,7 +359,7 @@ in
                 containers = [{
                   name = "zammad-railsserver";
                   image = "ghcr.io/zammad/zammad:${cfg.version}";
-                  command = ["zammad", "run", "rails", "server"];
+                  command = ["zammad" "run" "rails" "server"];
                   env = [
                     {
                       name = "POSTGRES_HOST";
@@ -463,7 +463,7 @@ in
                 containers = [{
                   name = "zammad-scheduler";
                   image = "ghcr.io/zammad/zammad:${cfg.version}";
-                  command = ["zammad", "run", "rails", "runner", "Scheduler.work"];
+                  command = ["zammad" "run" "rails" "runner" "Scheduler.work"];
                   env = [
                     {
                       name = "POSTGRES_HOST";
@@ -548,7 +548,7 @@ in
                 containers = [{
                   name = "zammad-websocket";
                   image = "ghcr.io/zammad/zammad:${cfg.version}";
-                  command = ["zammad", "run", "websocket"];
+                  command = ["zammad" "run" "websocket"];
                   env = [
                     {
                       name = "POSTGRES_HOST";
