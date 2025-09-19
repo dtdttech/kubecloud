@@ -19,7 +19,7 @@
   # VKM-specific configuration
   documentation.bookstack = {
     enable = true;
-    domain = "docs.vkm.maschinenbau.tu-darmstadt.de";
+    domain = "wiki.vkm.maschinenbau.tu-darmstadt.de";
     timezone = "Europe/Berlin";
     database = {
       name = "bookstack_vkm";
@@ -30,7 +30,7 @@
 
   identity.keycloak = {
     enable = true;
-    domain = "auth.vkm.maschinenbau.tu-darmstadt.de";
+    domain = "sso.vkm.maschinenbau.tu-darmstadt.de";
     mode = "production";
     admin = {
       username = "admin";
@@ -45,7 +45,7 @@
 
   scheduling.librebooking = {
     enable = true;
-    domain = "booking.vkm.maschinenbau.tu-darmstadt.de";
+    domain = "booked.vkm.maschinenbau.tu-darmstadt.de";
     timezone = "Europe/Berlin";
     environment = "production";
     database = {
@@ -76,7 +76,7 @@
 
   security.passbolt = {
     enable = true;
-    domain = "passwords.vkm.maschinenbau.tu-darmstadt.de";
+    domain = "warden.vkm.maschinenbau.tu-darmstadt.de";
     database = {
       password = "passbolt_vkm_secure123";
     };
@@ -84,8 +84,8 @@
 
   security.acme-dns = {
     enable = true;
-    domain = "acme-dns.vkm.maschinenbau.tu-darmstadt.de";
-    nsname = "acme-dns.vkm.maschinenbau.tu-darmstadt.de";
+    domain = "adns.vkm.maschinenbau.tu-darmstadt.de";
+    nsname = "adns.vkm.maschinenbau.tu-darmstadt.de";
     nsadmin = "admin.vkm.maschinenbau.tu-darmstadt.de";
     debug = false;
     logging = {
