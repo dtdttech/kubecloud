@@ -38,12 +38,7 @@ in
       '';
     };
 
-    # Provider-specific configurations
-    providers = mkOption {
-      type = types.attrsOf types.anything;
-      default = {};
-      description = "Storage provider configurations";
-    };
+    # Provider-specific configurations are defined by individual provider modules
   };
 
   config = {

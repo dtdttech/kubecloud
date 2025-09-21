@@ -66,11 +66,4 @@
     domain = "passbolt.dev.local";
     database.password = "dev123";
   };
-
-  # Enable monitoring for development
-  monitoring.prometheus.enable = true;
-  monitoring.grafana = {
-    enable = true;
-    domain = "grafana.dev.local";
-  };
 }
