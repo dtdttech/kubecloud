@@ -96,6 +96,16 @@
           src = nixhelm.chartsDerivations.${system}.grafana.grafana;
           crds = [];
         };
+        ceph-csi = nixidy.packages.${system}.generators.fromCRD {
+          name = "ceph-csi";
+          src = pkgs.fetchFromGitHub {
+            owner = "ceph";
+            repo = "ceph-csi";
+            rev = "v3.12.0";
+            hash = "sha256-gCaSAJbnBCwh9kDk1Sb6ByQ2kHhKBg2lMoHdrqW6Jlw=";
+          };
+          crds = [];
+        };
 # nextcloud = nixidy.packages.${system}.generators.fromCRD {
         #   name = "nextcloud";
         #   src = pkgs.fetchFromGitHub {
@@ -114,11 +124,12 @@
         program =
           (pkgs.writeShellScript "generate-modules" ''
             set -eo pipefail
-            mkdir -p modules/cilium modules/traefik modules/grafana modules/nextcloud
+            mkdir -p modules/cilium modules/traefik modules/grafana modules/nextcloud modules/ceph-csi
             cat ${self.packages.${system}.generators.cilium} > modules/cilium/generated.nix
             cat ${self.packages.${system}.generators.traefik} > modules/traefik/generated.nix
             cat ${self.packages.${system}.generators.prometheus} > modules/prometheus/generated.nix
             cat ${self.packages.${system}.generators.grafana} > modules/grafana/generated.nix
+            cat ${self.packages.${system}.generators.ceph-csi} > modules/ceph-csi/generated.nix
             # cat ${self.packages.${system}.generators.nextcloud} > modules/nextcloud/generated.nix
           '')
           .outPath;

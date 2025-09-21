@@ -13,6 +13,7 @@
     ./keycloak
     ./acme-dns
     ./zammad
+    ./ceph-csi
   ];
   options = with lib; {
     networking.domain = mkOption {
