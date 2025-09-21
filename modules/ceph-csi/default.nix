@@ -477,7 +477,7 @@ in
                     }];
                     ports = [{
                       name = "http-metrics";
-                      port = 8080;
+                      containerPort = 8080;
                       protocol = "TCP";
                     }];
                   }
@@ -669,7 +669,7 @@ in
                     }];
                     ports = [{
                       name = "http-metrics";
-                      port = 8080;
+                      containerPort = 8080;
                       protocol = "TCP";
                     }];
                   }
@@ -775,24 +775,6 @@ in
           allowVolumeExpansion = cfg.cephfs.storageClass.allowVolumeExpansion;
         };
 
-        # CSI Driver
-        csiDrivers.rbd-csi-ceph-com = lib.mkIf cfg.rbd.enable {
-          spec = {
-            attachRequired = true;
-            podInfoOnMount = false;
-            fsGroupPolicy = "File";
-            seLinuxMount = true;
-          };
-        };
-
-        csiDrivers.cephfs-csi-ceph-com = lib.mkIf cfg.cephfs.enable {
-          spec = {
-            attachRequired = false;
-            podInfoOnMount = false;
-            fsGroupPolicy = "File";
-            seLinuxMount = true;
-          };
-        };
       };
     };
   };
