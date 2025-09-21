@@ -84,9 +84,9 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable {
+  config = lib.mkIf cfg.enable (let
     # Create volumes using storage abstraction
-    storage.volumes = {
+    volumes = {
       mariadb = storageLib.commonVolumes.database {
         name = "mariadb";
         size = cfg.storage.database.size;
@@ -98,6 +98,7 @@ in
         provider = cfg.storage.provider;
       };
     };
+  in {
 
     applications.bookstack = {
       inherit namespace;
@@ -180,8 +181,8 @@ in
           };
         };
 
-        # MariaDB PVC (generated from storage abstraction)
-        persistentVolumeClaims = config.storage.volumes;
+        # PVCs generated from storage abstraction
+        persistentVolumeClaims = volumes;
 
         # BookStack Application
         deployments.bookstack = {
@@ -335,5 +336,5 @@ in
         };
       };
     };
-  };
+  });
 }

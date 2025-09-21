@@ -83,7 +83,7 @@ rec {
     };
 
   # Create multiple volumes at once
-  createVolumes = volumeSpecs: provider ? "local": storageClasses ? {}:
+  createVolumes = volumeSpecs: { provider ? "local", storageClasses ? {} }:
     lib.listToAttrs (map (spec: {
       name = "${spec.name}-pvc";
       value = createVolume (spec // { 
