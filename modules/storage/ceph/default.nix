@@ -6,12 +6,12 @@ let
 in
 
 let
-  cfg = config.storage.ceph-csi;
+  cfg = config.storage.providers.ceph;
 
   namespace = "ceph-csi-system";
 in
 {
-  options.storage.ceph-csi = with lib; {
+  options.storage.providers.ceph = with lib; {
     enable = mkOption {
       type = types.bool;
       default = true;

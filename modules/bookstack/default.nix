@@ -1,4 +1,4 @@
-{ lib, config, ... }:
+{ lib, config, storageLib, storageConfig, ... }:
 
 let
   cfg = config.documentation.bookstack;
@@ -58,9 +58,47 @@ in
         description = "Application encryption key for BookStack";
       };
     };
+
+    storage = {
+      provider = mkOption {
+        type = types.enum [ "local" "ceph" "longhorn" ];
+        default = storageConfig.defaultProvider;
+        description = "Storage provider to use for BookStack volumes";
+      };
+
+      database = {
+        size = mkOption {
+          type = types.str;
+          default = "20Gi";
+          description = "Size of the database storage volume";
+        };
+      };
+
+      config = {
+        size = mkOption {
+          type = types.str;
+          default = "5Gi";
+          description = "Size of the BookStack config storage volume";
+        };
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable {
+    # Create volumes using storage abstraction
+    storage.volumes = {
+      mariadb = storageLib.commonVolumes.database {
+        name = "mariadb";
+        size = cfg.storage.database.size;
+        provider = cfg.storage.provider;
+      };
+      bookstack-config = storageLib.commonVolumes.config {
+        name = "bookstack-config";
+        size = cfg.storage.config.size;
+        provider = cfg.storage.provider;
+      };
+    };
+
     applications.bookstack = {
       inherit namespace;
       createNamespace = true;
@@ -142,13 +180,8 @@ in
           };
         };
 
-        # MariaDB PVC
-        persistentVolumeClaims.mariadb-pvc = {
-          spec = {
-            accessModes = ["ReadWriteOnce"];
-            resources.requests.storage = "20Gi";
-          };
-        };
+        # MariaDB PVC (generated from storage abstraction)
+        persistentVolumeClaims = config.storage.volumes;
 
         # BookStack Application
         deployments.bookstack = {
@@ -275,13 +308,6 @@ in
           };
         };
 
-        # BookStack PVC
-        persistentVolumeClaims.bookstack-config-pvc = {
-          spec = {
-            accessModes = ["ReadWriteOnce"];
-            resources.requests.storage = "5Gi";
-          };
-        };
 
         # Ingress for BookStack
         ingresses.bookstack = {

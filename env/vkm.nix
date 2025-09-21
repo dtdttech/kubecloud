@@ -16,6 +16,37 @@
   
   networking.domain = "vkm.maschinenbau.tu-darmstadt.de";
 
+  # Storage configuration for VKM production environment
+  storage = {
+    defaultProvider = "ceph";  # Use Ceph for production
+    storageClasses = {
+      rwo = "ceph-rbd";        # ReadWriteOnce uses RBD (block storage)
+      rwx = "ceph-cephfs";     # ReadWriteMany uses CephFS (filesystem)
+      rox = "ceph-cephfs";     # ReadOnlyMany uses CephFS (filesystem)
+    };
+    providers = {
+      local.enable = false;    # Disable local storage in production
+      ceph = {
+        enable = true;
+        cluster = {
+          clusterID = "vkm-ceph-cluster";
+          monitors = [
+            "10.0.1.10:6789"
+            "10.0.1.11:6789"
+            "10.0.1.12:6789"
+          ];
+        };
+        secrets = {
+          userID = "kubernetes";
+          userKey = "AQBQVkNhL1VkBhAAzOWOCpQNbCOg0BlpKQv6Wg==";
+          adminID = "admin";
+          adminKey = "AQBQVkNhYQJkBhAAb8OVKqP3F6k7zK4OvA2T7w==";
+        };
+      };
+      longhorn.enable = false; # Disable Longhorn (using Ceph instead)
+    };
+  };
+
   # VKM-specific configuration
   documentation.bookstack = {
     enable = true;
@@ -25,6 +56,11 @@
       name = "bookstack_vkm";
       user = "bookstack_vkm";
       password = "bookstack_vkm_secure123";
+    };
+    storage = {
+      provider = "ceph";  # Use Ceph storage for BookStack
+      database.size = "50Gi";  # Larger database for production
+      config.size = "10Gi";    # Larger config storage for production
     };
   };
 

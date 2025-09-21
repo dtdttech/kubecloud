@@ -43,6 +43,12 @@
             ./env/vkm.nix
           ];
         };
+        dev = {
+          modules = [
+            ./modules
+            ./env/dev.nix
+          ];
+        };
       };
     };
   in {
@@ -50,6 +56,7 @@
     packages = {
       default = envs.prod.environmentPackage;
       vkm = envs.vkm.environmentPackage;
+      dev = envs.dev.environmentPackage;
       nixidy = nixidy.packages.${system}.default;
       generators = {
         cilium = nixidy.packages.${system}.generators.fromCRD {

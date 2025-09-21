@@ -2,6 +2,7 @@
   imports = [
     # ./argocd
     # ./cilium
+    ./storage
     ./traefik
     ./external-secrets
     ./prometheus
@@ -13,7 +14,7 @@
     ./keycloak
     ./acme-dns
     ./zammad
-    ./ceph-csi
+    # ./ceph-csi  # Moved to ./storage/ceph
   ];
   options = with lib; {
     networking.domain = mkOption {
