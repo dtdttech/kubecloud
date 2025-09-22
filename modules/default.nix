@@ -3,8 +3,9 @@
     # ./argocd
     # ./cilium
     ./storage
+    ./secrets
     ./traefik
-    ./external-secrets
+    ./external-secrets  # Keep for backward compatibility, but new external secrets config in ./secrets/external
     ./prometheus
     ./grafana
     # ./nextcloud

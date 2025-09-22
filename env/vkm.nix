@@ -47,6 +47,72 @@
     };
   };
 
+  # Secrets configuration for VKM production environment
+  secrets = {
+    defaultProvider = "external";  # Use external secrets for production
+    commonLabels = {
+      "environment" = "vkm-production";
+      "managed-by" = "kubecloud";
+      "organization" = "tu-darmstadt";
+      "department" = "vkm";
+    };
+    security = {
+      enforceEncryption = true;
+      allowedNamespaces = [
+        "bookstack" "keycloak" "librebooking" "zammad" 
+        "passbolt" "acme-dns" "monitoring" "kube-system"
+      ];
+    };
+    lifecycle = {
+      enableRotation = true;
+      rotationInterval = "60d";  # More frequent rotation for production
+      defaultRefreshInterval = "30m";  # More frequent refresh
+    };
+    providers = {
+      internal.enable = false;  # Disable internal secrets in production
+      external = {
+        enable = true;
+        namespace = "external-secrets-system";
+        monitoring.enable = true;
+        # Secret stores configuration for VKM environment
+        secretStores = {
+          # University vault store for sensitive credentials
+          tu-vault = {
+            provider = "vault";
+            namespace = null;  # ClusterSecretStore for university-wide access
+            config = {
+              server = "https://vault.tu-darmstadt.de";
+              path = "vkm";
+              version = "v2";
+            };
+            auth = {
+              kubernetes = {
+                mountPath = "vkm-kubernetes";
+                role = "vkm-external-secrets";
+              };
+            };
+          };
+          # Backup store for non-sensitive configuration
+          k8s-config = {
+            provider = "kubernetes";
+            namespace = "kube-system";
+            config = {
+              server = {
+                caBundle = "";  # Use service account CA
+                url = "https://kubernetes.default.svc";
+              };
+            };
+            auth = {
+              serviceAccount = {
+                name = "external-secrets";
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+
   # VKM-specific configuration
   documentation.bookstack = {
     enable = true;

@@ -29,6 +29,23 @@
     };
   };
 
+  # Secrets configuration for development environment
+  secrets = {
+    defaultProvider = "internal";  # Use internal secrets for development
+    commonLabels = {
+      "environment" = "development";
+      "managed-by" = "kubecloud";
+    };
+    providers = {
+      internal = {
+        enable = true;
+        validation.enable = true;  # Enable validation for development
+        monitoring.enable = true;  # Enable monitoring for development
+      };
+      external.enable = false;  # Disable external secrets in development
+    };
+  };
+
   # Development configuration (smaller resources, simpler setup)
   documentation.bookstack = {
     enable = true;

@@ -1,4 +1,4 @@
-{ lib, config, storageLib, storageConfig, ... }:
+{ lib, config, storageLib, storageConfig, secretsLib, secretsConfig, ... }:
 
 let
   cfg = config.documentation.bookstack;
@@ -82,6 +82,42 @@ in
         };
       };
     };
+
+    secrets = {
+      provider = mkOption {
+        type = types.enum [ "internal" "external" ];
+        default = secretsConfig.defaultProvider;
+        description = "Secrets provider to use for BookStack secrets";
+      };
+
+      database = {
+        useExisting = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Use existing database secret instead of generating one";
+        };
+
+        existingSecret = mkOption {
+          type = types.nullOr types.str;
+          default = null;
+          description = "Name of existing database secret to use";
+        };
+      };
+
+      app = {
+        useExisting = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Use existing application secret instead of generating one";
+        };
+
+        existingSecret = mkOption {
+          type = types.nullOr types.str;
+          default = null;
+          description = "Name of existing application secret to use";
+        };
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable (let
@@ -97,6 +133,30 @@ in
         size = cfg.storage.config.size;
         provider = cfg.storage.provider;
       };
+    };
+
+    # Create secrets using secrets abstraction
+    secrets = {
+      database = lib.mkIf (!cfg.secrets.database.useExisting) (
+        secretsLib.commonSecrets.database {
+          name = "bookstack-database";
+          provider = cfg.secrets.provider;
+          username = cfg.database.user;
+          password = cfg.database.password;
+          database = cfg.database.name;
+        }
+      );
+
+      app = lib.mkIf (!cfg.secrets.app.useExisting) (
+        secretsLib.commonSecrets.application {
+          name = "bookstack-app";
+          provider = cfg.secrets.provider;
+          secrets = {
+            APP_KEY = cfg.app.key;
+            APP_URL = "https://${cfg.domain}";
+          };
+        }
+      );
     };
   in {
 
@@ -125,21 +185,41 @@ in
                   env = [
                     {
                       name = "MYSQL_ROOT_PASSWORD";
-                      value = "rootpassword123";
+                      value = "rootpassword123";  # Keep separate for now
                     }
-                    {
+                  ] ++ (if cfg.secrets.database.useExisting then [
+                    (secretsLib.createSecretEnvVar {
                       name = "MYSQL_DATABASE";
-                      value = cfg.database.name;
-                    }
-                    {
+                      secretName = cfg.secrets.database.existingSecret;
+                      secretKey = "database";
+                    })
+                    (secretsLib.createSecretEnvVar {
                       name = "MYSQL_USER";
-                      value = cfg.database.user;
-                    }
-                    {
+                      secretName = cfg.secrets.database.existingSecret;
+                      secretKey = "username";
+                    })
+                    (secretsLib.createSecretEnvVar {
                       name = "MYSQL_PASSWORD";
-                      value = cfg.database.password;
-                    }
-                  ];
+                      secretName = cfg.secrets.database.existingSecret;
+                      secretKey = "password";
+                    })
+                  ] else [
+                    (secretsLib.createSecretEnvVar {
+                      name = "MYSQL_DATABASE";
+                      secretName = "bookstack-database";
+                      secretKey = "database";
+                    })
+                    (secretsLib.createSecretEnvVar {
+                      name = "MYSQL_USER";
+                      secretName = "bookstack-database";
+                      secretKey = "username";
+                    })
+                    (secretsLib.createSecretEnvVar {
+                      name = "MYSQL_PASSWORD";
+                      secretName = "bookstack-database";
+                      secretKey = "password";
+                    })
+                  ]);
                   ports = [{
                     containerPort = 3306;
                   }];
@@ -184,6 +264,9 @@ in
         # PVCs generated from storage abstraction
         persistentVolumeClaims = volumes;
 
+        # Secrets generated from secrets abstraction
+        secrets = lib.filterAttrs (name: secret: secret != null) secrets;
+
         # BookStack Application
         deployments.bookstack = {
           spec = {
@@ -224,14 +307,6 @@ in
                       value = cfg.timezone;
                     }
                     {
-                      name = "APP_URL";
-                      value = "https://${cfg.domain}";
-                    }
-                    {
-                      name = "APP_KEY";
-                      value = cfg.app.key;
-                    }
-                    {
                       name = "DB_HOST";
                       value = cfg.database.host;
                     }
@@ -239,19 +314,61 @@ in
                       name = "DB_PORT";
                       value = "3306";
                     }
-                    {
-                      name = "DB_USERNAME";
-                      value = cfg.database.user;
-                    }
-                    {
-                      name = "DB_PASSWORD";
-                      value = cfg.database.password;
-                    }
-                    {
+                  ] ++ (if cfg.secrets.app.useExisting then [
+                    (secretsLib.createSecretEnvVar {
+                      name = "APP_URL";
+                      secretName = cfg.secrets.app.existingSecret;
+                      secretKey = "APP_URL";
+                    })
+                    (secretsLib.createSecretEnvVar {
+                      name = "APP_KEY";
+                      secretName = cfg.secrets.app.existingSecret;
+                      secretKey = "APP_KEY";
+                    })
+                  ] else [
+                    (secretsLib.createSecretEnvVar {
+                      name = "APP_URL";
+                      secretName = "bookstack-app";
+                      secretKey = "APP_URL";
+                    })
+                    (secretsLib.createSecretEnvVar {
+                      name = "APP_KEY";
+                      secretName = "bookstack-app";
+                      secretKey = "APP_KEY";
+                    })
+                  ]) ++ (if cfg.secrets.database.useExisting then [
+                    (secretsLib.createSecretEnvVar {
                       name = "DB_DATABASE";
-                      value = cfg.database.name;
-                    }
-                  ];
+                      secretName = cfg.secrets.database.existingSecret;
+                      secretKey = "database";
+                    })
+                    (secretsLib.createSecretEnvVar {
+                      name = "DB_USERNAME";
+                      secretName = cfg.secrets.database.existingSecret;
+                      secretKey = "username";
+                    })
+                    (secretsLib.createSecretEnvVar {
+                      name = "DB_PASSWORD";
+                      secretName = cfg.secrets.database.existingSecret;
+                      secretKey = "password";
+                    })
+                  ] else [
+                    (secretsLib.createSecretEnvVar {
+                      name = "DB_DATABASE";
+                      secretName = "bookstack-database";
+                      secretKey = "database";
+                    })
+                    (secretsLib.createSecretEnvVar {
+                      name = "DB_USERNAME";
+                      secretName = "bookstack-database";
+                      secretKey = "username";
+                    })
+                    (secretsLib.createSecretEnvVar {
+                      name = "DB_PASSWORD";
+                      secretName = "bookstack-database";
+                      secretKey = "password";
+                    })
+                  ]);
                   ports = [{
                     containerPort = 80;
                   }];
