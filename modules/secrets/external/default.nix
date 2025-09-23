@@ -171,7 +171,7 @@ in {
       {
         name = "external-secrets";
         rules = [
-          {
+          ({
             alert = "ExternalSecretSyncFailure";
             expr = ''
               increase(external_secrets_sync_calls_error_total[5m]) > 0
@@ -182,9 +182,9 @@ in {
               summary = "External secret {{ $labels.name }} sync failing";
               description = "External secret {{ $labels.name }} in namespace {{ $labels.namespace }} has failed to sync for 5 minutes";
             };
-          } // lib.optionalAttrs cfg.monitoring.alerts.externalSecretFailure {}
+          } // lib.optionalAttrs cfg.monitoring.alerts.externalSecretFailure {})
 
-          {
+          ({
             alert = "SecretStoreUnhealthy";
             expr = ''
               external_secrets_secret_store_connection_status != 1
@@ -195,7 +195,7 @@ in {
               summary = "Secret store {{ $labels.name }} is unhealthy";
               description = "Secret store {{ $labels.name }} in namespace {{ $labels.namespace }} has been unhealthy for 10 minutes";
             };
-          } // lib.optionalAttrs cfg.monitoring.alerts.secretStoreUnhealthy {}
+          } // lib.optionalAttrs cfg.monitoring.alerts.secretStoreUnhealthy {})
 
           {
             alert = "ExternalSecretStale";

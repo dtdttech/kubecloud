@@ -86,7 +86,7 @@ in
       {
         name = "internal-secrets";
         rules = [
-          {
+          ({
             alert = "SecretNearExpiry";
             expr = ''
               (
@@ -101,9 +101,9 @@ in
               summary = "TLS certificate in secret {{ $labels.secret_name }} expires in less than 7 days";
               description = "Certificate in secret {{ $labels.secret_name }} in namespace {{ $labels.secret_namespace }} expires in {{ $value | humanizeDuration }}";
             };
-          } // lib.optionalAttrs cfg.monitoring.alerts.secretsNearExpiry {}
+          } // lib.optionalAttrs cfg.monitoring.alerts.secretsNearExpiry {})
           
-          {
+          ({
             alert = "UnusedSecret";
             expr = ''
               (
@@ -120,7 +120,7 @@ in
               summary = "Secret {{ $labels.secret_name }} has not been used for 30 days";
               description = "Secret {{ $labels.secret_name }} in namespace {{ $labels.secret_namespace }} has not been mounted by any pod for 30 days and may be safe to remove";
             };
-          } // lib.optionalAttrs cfg.monitoring.alerts.unusedSecrets {}
+          } // lib.optionalAttrs cfg.monitoring.alerts.unusedSecrets {})
         ];
       }
     ];

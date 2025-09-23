@@ -524,7 +524,7 @@ in {
       {
         name = "cert-manager";
         rules = [
-          {
+          ({
             alert = "CertManagerCertificateExpiringSoon";
             expr = ''
               certmanager_certificate_expiration_timestamp_seconds - time() < 7 * 24 * 3600
@@ -535,9 +535,9 @@ in {
               summary = "Certificate {{ $labels.name }} expiring soon";
               description = "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} will expire in less than 7 days";
             };
-          } // lib.optionalAttrs cfg.monitoring.alerts.certificateExpiry {}
+          } // lib.optionalAttrs cfg.monitoring.alerts.certificateExpiry {})
 
-          {
+          ({
             alert = "CertManagerCertificateNotReady";
             expr = ''
               certmanager_certificate_ready_status == 0
@@ -548,7 +548,7 @@ in {
               summary = "Certificate {{ $labels.name }} not ready";
               description = "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} has not been ready for 10 minutes";
             };
-          } // lib.optionalAttrs cfg.monitoring.alerts.certificateRenewalFailure {}
+          } // lib.optionalAttrs cfg.monitoring.alerts.certificateRenewalFailure {})
 
           {
             alert = "CertManagerACMEAccountRegistrationFailed";
