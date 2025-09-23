@@ -113,6 +113,13 @@
           };
           crds = [];
         };
+        cert-manager = nixidy.packages.${system}.generators.fromCRD {
+          name = "cert-manager";
+          src = nixhelm.chartsDerivations.${system}.jetstack.cert-manager;
+          crds = [
+            "templates/crds.yaml"
+          ];
+        };
 # nextcloud = nixidy.packages.${system}.generators.fromCRD {
         #   name = "nextcloud";
         #   src = pkgs.fetchFromGitHub {
@@ -131,12 +138,13 @@
         program =
           (pkgs.writeShellScript "generate-modules" ''
             set -eo pipefail
-            mkdir -p modules/cilium modules/traefik modules/grafana modules/nextcloud modules/ceph-csi
+            mkdir -p modules/cilium modules/traefik modules/grafana modules/nextcloud modules/ceph-csi modules/cert-manager
             cat ${self.packages.${system}.generators.cilium} > modules/cilium/generated.nix
             cat ${self.packages.${system}.generators.traefik} > modules/traefik/generated.nix
             cat ${self.packages.${system}.generators.prometheus} > modules/prometheus/generated.nix
             cat ${self.packages.${system}.generators.grafana} > modules/grafana/generated.nix
             cat ${self.packages.${system}.generators.ceph-csi} > modules/ceph-csi/generated.nix
+            cat ${self.packages.${system}.generators.cert-manager} > modules/cert-manager/generated.nix
             # cat ${self.packages.${system}.generators.nextcloud} > modules/nextcloud/generated.nix
           '')
           .outPath;

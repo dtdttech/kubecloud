@@ -83,4 +83,168 @@
     domain = "passbolt.dev.local";
     database.password = "dev123";
   };
+
+  # Certificate management for development
+  security.cert-manager = {
+    enable = true;
+    namespace = "cert-manager";
+    
+    # Simple self-signed issuer for development
+    clusterIssuers = {
+      selfsigned-dev = {
+        type = "selfSigned";
+      };
+      
+      # Let's Encrypt staging for development testing
+      letsencrypt-staging = {
+        type = "acme";
+        acme = {
+          server = "https://acme-staging-v02.api.letsencrypt.org/directory";
+          email = "admin@dev.local";
+          solvers = [
+            {
+              http01 = {
+                ingress = {
+                  class = "traefik";
+                };
+              };
+            }
+          ];
+        };
+      };
+    };
+    
+    defaultIssuer = "selfsigned-dev";
+    
+    monitoring = {
+      enabled = true;
+      alerts = {
+        certificateExpiry = true;
+        certificateRenewalFailure = true;
+      };
+    };
+  };
+
+  # nginx configurations for development
+  webservers.nginx.deployments = {
+    # Static site example
+    static-demo = {
+      enable = true;
+      namespace = "nginx";
+      createNamespace = true;
+      
+      sites = {
+        default = {
+          port = 80;
+          serverName = "static.dev.local";
+          root = "/usr/share/nginx/html";
+          index = "index.html";
+          defaultServer = true;
+          
+          locations = [
+            {
+              path = "/";
+              tryFiles = "$uri $uri/ =404";
+            }
+            {
+              path = "/health";
+              return = "200 'OK'";
+              extraConfig = "add_header Content-Type text/plain;";
+            }
+          ];
+        };
+      };
+      
+      staticFiles = {
+        "index.html" = ''
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Development Static Site</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 40px; }
+                  .container { max-width: 800px; margin: 0 auto; }
+                  h1 { color: #333; }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>Welcome to Development Environment</h1>
+                  <p>This is a static site served by nginx in the development environment.</p>
+                  <p>Environment: <strong>Development</strong></p>
+                  <p>Server: nginx</p>
+              </div>
+          </body>
+          </html>
+        '';
+      };
+      
+      ingress = {
+        enable = true;
+        host = "static.dev.local";
+        tls = false; # No TLS for development
+      };
+      
+      monitoring.enabled = true;
+      
+      resources = {
+        requests = {
+          cpu = "5m";
+          memory = "8Mi";
+        };
+        limits = {
+          cpu = "50m";
+          memory = "32Mi";
+        };
+      };
+    };
+
+    # Reverse proxy example
+    proxy-demo = {
+      enable = true;
+      namespace = "nginx";
+      
+      upstreams = {
+        bookstack-backend = {
+          servers = [ "bookstack.bookstack.svc.cluster.local:80" ];
+          method = "round_robin";
+          keepalive = 32;
+        };
+      };
+      
+      sites = {
+        proxy = {
+          port = 80;
+          serverName = "proxy.dev.local";
+          
+          locations = [
+            {
+              path = "/";
+              proxyPass = "http://bookstack-backend";
+            }
+            {
+              path = "/health";
+              return = "200 'Proxy OK'";
+              extraConfig = "add_header Content-Type text/plain;";
+            }
+          ];
+          
+          extraConfig = ''
+            # Custom headers for proxy
+            add_header X-Proxy-By nginx;
+          '';
+        };
+      };
+      
+      globalConfig = {
+        client_max_body_size = "10m";
+      };
+      
+      ingress = {
+        enable = true;
+        host = "proxy.dev.local";
+        tls = false;
+      };
+    };
+  };
 }

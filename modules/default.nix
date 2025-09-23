@@ -15,6 +15,8 @@
     ./keycloak
     ./acme-dns
     ./zammad
+    ./cert-manager
+    ./nginx
     # ./ceph-csi  # Moved to ./storage/ceph
   ];
   options = with lib; {

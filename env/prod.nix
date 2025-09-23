@@ -59,6 +59,227 @@
       };
     };
 
+    # Certificate management for production
+    security.cert-manager = {
+      enable = true;
+      namespace = "cert-manager";
+      
+      clusterIssuers = {
+        # Let's Encrypt production issuer
+        letsencrypt-prod = {
+          type = "acme";
+          acme = {
+            server = "https://acme-v02.api.letsencrypt.org/directory";
+            email = "admin@cdbrdr.com";
+            solvers = [
+              {
+                http01 = {
+                  ingress = {
+                    class = "traefik";
+                  };
+                };
+              }
+              # DNS-01 solver for wildcard certificates (example)
+              {
+                dns01 = {
+                  cloudflare = {
+                    email = "admin@cdbrdr.com";
+                    apiTokenSecretRef = {
+                      name = "cloudflare-api-token";
+                      key = "api-token";
+                    };
+                  };
+                };
+                selector = {
+                  dnsZones = [ "cdbrdr.com" ];
+                };
+              }
+            ];
+          };
+        };
+        
+        # Self-signed CA for internal services
+        internal-ca = {
+          type = "ca";
+          ca = {
+            secretName = "internal-ca-key-pair";
+          };
+        };
+      };
+      
+      defaultIssuer = "letsencrypt-prod";
+      
+      dns.providers = {
+        cloudflare = {
+          type = "cloudflare";
+          secretName = "cloudflare-api-token";
+          config = {
+            email = "admin@cdbrdr.com";
+          };
+        };
+      };
+      
+      monitoring = {
+        enabled = true;
+        alerts = {
+          certificateExpiry = true;
+          certificateRenewalFailure = true;
+        };
+      };
+      
+      security = {
+        networkPolicies.enabled = true;
+      };
+    };
+
+    # nginx configurations for production
+    webservers.nginx.deployments = {
+      # Production static site with persistent storage
+      company-website = {
+        enable = true;
+        namespace = "website";
+        createNamespace = true;
+        replicas = 2; # High availability
+        
+        sites = {
+          main = {
+            port = 80;
+            serverName = "www.cdbrdr.com cdbrdr.com";
+            root = "/usr/share/nginx/html";
+            index = "index.html index.htm";
+            defaultServer = true;
+            
+            locations = [
+              {
+                path = "/";
+                tryFiles = "$uri $uri/ =404";
+              }
+              {
+                path = "~ \\.(js|css|png|jpg|jpeg|gif|ico|svg)$";
+                extraConfig = ''
+                  expires 1y;
+                  add_header Cache-Control "public, immutable";
+                '';
+              }
+              {
+                path = "/api/";
+                return = "404";
+              }
+              {
+                path = "/health";
+                return = "200 'OK'";
+                extraConfig = "add_header Content-Type text/plain;";
+              }
+            ];
+            
+            extraConfig = ''
+              # Security headers
+              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+              add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" always;
+              
+              # Compression
+              gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+            '';
+          };
+        };
+        
+        storage = {
+          provider = "ceph";
+          content = {
+            enable = true;
+            size = "20Gi";
+          };
+        };
+        
+        ingress = {
+          enable = true;
+          host = "www.cdbrdr.com";
+          tls = true;
+          annotations = {
+            "cert-manager.io/cluster-issuer" = "letsencrypt-prod";
+          };
+        };
+        
+        monitoring.enabled = true;
+        
+        resources = {
+          requests = {
+            cpu = "20m";
+            memory = "32Mi";
+          };
+          limits = {
+            cpu = "200m";
+            memory = "128Mi";
+          };
+        };
+      };
+
+      # Load balancer for demo application
+      demo-lb = {
+        enable = true;
+        namespace = "demo";
+        
+        upstreams = {
+          demo-app = {
+            servers = [ 
+              "nginx.demo.svc.cluster.local:80"
+            ];
+            method = "least_conn";
+            keepalive = 64;
+          };
+        };
+        
+        sites = {
+          proxy = {
+            port = 80;
+            serverName = "demo.cdbrdr.com";
+            
+            locations = [
+              {
+                path = "/";
+                proxyPass = "http://demo-app";
+                extraConfig = ''
+                  proxy_cache_bypass $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_set_header Upgrade $http_upgrade;
+                '';
+              }
+              {
+                path = "/health";
+                return = "200 'Load Balancer OK'";
+                extraConfig = "add_header Content-Type text/plain;";
+              }
+            ];
+            
+            extraConfig = ''
+              # Rate limiting
+              limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+              limit_req zone=api burst=20 nodelay;
+              
+              # Security headers
+              add_header X-Load-Balanced-By nginx;
+            '';
+          };
+        };
+        
+        globalConfig = {
+          client_max_body_size = "50m";
+          keepalive_timeout = "120";
+        };
+        
+        ingress = {
+          enable = true;
+          host = "demo.cdbrdr.com";
+          tls = true;
+          annotations = {
+            "cert-manager.io/cluster-issuer" = "letsencrypt-prod";
+          };
+        };
+        
+        monitoring.enabled = true;
+      };
+    };
+
     applications.demo = {
     # All resources will be deployed into this namespace.
     namespace = "demo";
