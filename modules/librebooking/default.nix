@@ -9,7 +9,7 @@ in
   options.scheduling.librebooking = with lib; {
     enable = mkOption {
       type = types.bool;
-      default = true;
+      default = false;
       description = "Enable LibreBooking scheduling system";
     };
 

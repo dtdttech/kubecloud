@@ -8,7 +8,7 @@ in {
   options.secrets.external-secrets = with lib; {
     enable = mkOption {
       type = types.bool;
-      default = true;
+      default = false;
     };
     values = mkOption {
       type = types.attrsOf types.anything;

@@ -9,7 +9,7 @@ in
   options.identity.keycloak = with lib; {
     enable = mkOption {
       type = types.bool;
-      default = true;
+      default = false;
       description = "Enable Keycloak identity and access management";
     };
 

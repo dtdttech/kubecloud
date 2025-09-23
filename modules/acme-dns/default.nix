@@ -36,7 +36,7 @@ in
   options.security.acme-dns = with lib; {
     enable = mkOption {
       type = types.bool;
-      default = true;
+      default = false;
       description = "Enable acme-dns server for ACME DNS challenges";
     };
 

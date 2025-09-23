@@ -53,7 +53,7 @@ in
   options.monitoring.grafana = with lib; {
     enable = mkOption {
       type = types.bool;
-      default = true;
+      default = false;
       description = "Enable Grafana via Helm";
     };
 
