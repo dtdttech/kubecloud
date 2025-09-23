@@ -16,9 +16,7 @@ let
       pathParts = lib.splitString "/" path;
       content = builtins.fromJSON decryptedJSON;
     in content;
-in
 
-let
   cfg = config.storage.providers.ceph;
 
   namespace = "ceph-csi-system";
@@ -48,31 +46,25 @@ in
         name = mkOption {
           type = types.str;
           default = "ceph-rbd";
-          description = "Name of the RBD storage class";
-        };
-
-        pool = mkOption {
-          type = types.str;
-          default = "kubernetes";
-          description = "Ceph RBD pool name";
-        };
-
-        imageFeatures = mkOption {
-          type = types.str;
-          default = "layering";
-          description = "RBD image features";
+          description = "Name of the RBD StorageClass";
         };
 
         reclaimPolicy = mkOption {
-          type = types.enum [ "Delete" "Retain" ];
+          type = types.str;
           default = "Delete";
-          description = "Volume reclaim policy";
+          description = "Reclaim policy for RBD volumes";
         };
 
         allowVolumeExpansion = mkOption {
           type = types.bool;
           default = true;
-          description = "Allow volume expansion";
+          description = "Allow volume expansion for RBD volumes";
+        };
+
+        pool = mkOption {
+          type = types.str;
+          default = "kube-data";
+          description = "Ceph pool name for RBD volumes";
         };
       };
     };
@@ -80,74 +72,40 @@ in
     cephfs = {
       enable = mkOption {
         type = types.bool;
-        default = true;
-        description = "Enable CephFS (shared filesystem) support";
+        default = false;
+        description = "Enable CephFS (file storage) support";
       };
 
       storageClass = {
         name = mkOption {
           type = types.str;
           default = "ceph-cephfs";
-          description = "Name of the CephFS storage class";
-        };
-
-        fsName = mkOption {
-          type = types.str;
-          default = "cephfs";
-          description = "CephFS filesystem name";
+          description = "Name of the CephFS StorageClass";
         };
 
         reclaimPolicy = mkOption {
-          type = types.enum [ "Delete" "Retain" ];
+          type = types.str;
           default = "Delete";
-          description = "Volume reclaim policy";
+          description = "Reclaim policy for CephFS volumes";
         };
 
         allowVolumeExpansion = mkOption {
           type = types.bool;
           default = true;
-          description = "Allow volume expansion";
+          description = "Allow volume expansion for CephFS volumes";
         };
-      };
-    };
 
-    cluster = {
-      clusterID = mkOption {
-        type = types.str;
-        default = "ceph-cluster";
-        description = "Unique identifier for the Ceph cluster";
-      };
+        pool = mkOption {
+          type = types.str;
+          default = "kube-data";
+          description = "Ceph pool name for CephFS volumes";
+        };
 
-      monitors = mkOption {
-        type = types.listOf types.str;
-        default = [ "10.0.0.1:6789" "10.0.0.2:6789" "10.0.0.3:6789" ];
-        description = "List of Ceph monitor addresses";
-      };
-    };
-
-    secrets = {
-      userID = mkOption {
-        type = types.str;
-        default = "admin";
-        description = "Ceph user ID for authentication";
-      };
-
-      userKey = mkOption {
-        type = types.str;
-        default = "AQBLvLZjJc5cERAAm+8qIW8jYy9bL2UfQ1Q6Jw==";
-        description = "Ceph user key for authentication";
-      };
-
-      adminID = mkOption {
-        type = types.str;
-        default = "admin";
-        description = "Ceph admin user ID";
-      };
-
-      adminKey = mkOption {
-        type = types.str;
-        default = "AQBLvLZjJc5cERAAm+8qIW8jYy9bL2UfQ1Q6Jw==";
-        description = "Ceph admin user key";
+        fsName = mkOption {
+          type = types.str;
+          default = "kube-data-fs";
+          description = "CephFS filesystem name";
+        };
       };
     };
 
@@ -155,19 +113,52 @@ in
       enable = mkOption {
         type = types.bool;
         default = false;
-        description = "Enable SOPS-based secret management for Ceph";
+        description = "Enable SOPS-based secret management";
       };
 
       secretsFile = mkOption {
         type = types.path;
-        default = ./../../secrets/vkm.sops.yaml;
         description = "Path to SOPS secrets file";
       };
 
       secretsPath = mkOption {
         type = types.str;
         default = "ceph";
-        description = "Path within SOPS secrets file to Ceph secrets";
+        description = "Path to secrets within SOPS file";
+      };
+    };
+
+    cluster = {
+      clusterID = mkOption {
+        type = types.str;
+        description = "Ceph cluster ID";
+      };
+
+      monitors = mkOption {
+        type = types.listOf types.str;
+        description = "List of Ceph monitor addresses";
+      };
+    };
+
+    secrets = {
+      userID = mkOption {
+        type = types.str;
+        description = "Ceph user ID for Kubernetes operations";
+      };
+
+      userKey = mkOption {
+        type = types.str;
+        description = "Ceph user key for Kubernetes operations";
+      };
+
+      adminID = mkOption {
+        type = types.str;
+        description = "Ceph admin user ID for CSI operations";
+      };
+
+      adminKey = mkOption {
+        type = types.str;
+        description = "Ceph admin key for CSI operations";
       };
     };
   };
@@ -177,8 +168,12 @@ in
       inherit namespace;
       createNamespace = true;
 
+      # Import generated CRDs
+      imports = [cephCsiCrds];
+
+      # Ceph CSI configuration
       resources = {
-        # Ceph CSI Config Map
+        # ConfigMap with cluster information
         configMaps.ceph-csi-config = {
           data = {
             "config.json" = builtins.toJSON [
@@ -196,39 +191,131 @@ in
           };
         };
 
-        # Ceph CSI Encryption Config Map
-        configMaps.ceph-csi-encryption-kms-config = {
-          data = {
-            "config.json" = builtins.toJSON {};
-          };
-        };
-
         # RBD Secret
         secrets.csi-rbd-secret = lib.mkIf cfg.rbd.enable {
           stringData = 
             if cfg.sops.enable then 
-              decryptSOPS cfg.sops.secretsFile "ceph"
+              let sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
+              in {
+                userID = sopsData.userID;
+                userKey = sopsData.userKey;
+                adminID = sopsData.adminID;
+                adminKey = sopsData.adminKey;
+              }
             else {
               userID = cfg.secrets.userID;
               userKey = cfg.secrets.userKey;
+              adminID = cfg.secrets.adminID;
+              adminKey = cfg.secrets.adminKey;
             };
         };
 
         # CephFS Secret  
         secrets.csi-cephfs-secret = lib.mkIf cfg.cephfs.enable {
           stringData = 
-            if cfg.sops.enable then {
-              adminID = (decryptSOPS cfg.sops.secretsFile "ceph").adminID;
-              adminKey = (decryptSOPS cfg.sops.secretsFile "ceph").adminKey;
-            } else {
+            if cfg.sops.enable then 
+              let sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
+              in {
+                adminID = sopsData.adminID;
+                adminKey = sopsData.adminKey;
+              }
+            else {
               adminID = cfg.secrets.adminID;
               adminKey = cfg.secrets.adminKey;
             };
         };
 
-        # RBD Provisioner RBAC
-        serviceAccounts.rbd-csi-provisioner = lib.mkIf cfg.rbd.enable {};
+        # RBD StorageClass
+        storageClasses.${cfg.rbd.storageClass.name} = lib.mkIf cfg.rbd.enable {
+          provisioner = "rbd.csi.ceph.com";
+          parameters = {
+            "csi.storage.k8s.io/provisioner-secret-name" = "csi-rbd-secret";
+            "csi.storage.k8s.io/provisioner-secret-namespace" = namespace;
+            "csi.storage.k8s.io/controller-expand-secret-name" = "csi-rbd-secret";
+            "csi.storage.k8s.io/controller-expand-secret-namespace" = namespace;
+            "csi.storage.k8s.io/node-stage-secret-name" = "csi-rbd-secret";
+            "csi.storage.k8s.io/node-stage-secret-namespace" = namespace;
+            "clusterID" = if cfg.sops.enable then 
+              (decryptSOPS cfg.sops.secretsFile "ceph").clusterID
+              else cfg.cluster.clusterID;
+            "pool" = cfg.rbd.storageClass.pool;
+            "imageFormat" = "2";
+            "imageFeatures" = "layering";
+          };
+          reclaimPolicy = cfg.rbd.storageClass.reclaimPolicy;
+          allowVolumeExpansion = cfg.rbd.storageClass.allowVolumeExpansion;
+          volumeBindingMode = "Immediate";
+        };
 
+        # CephFS StorageClass
+        storageClasses.${cfg.cephfs.storageClass.name} = lib.mkIf cfg.cephfs.enable {
+          provisioner = "cephfs.csi.ceph.com";
+          parameters = {
+            "csi.storage.k8s.io/provisioner-secret-name" = "csi-cephfs-secret";
+            "csi.storage.k8s.io/provisioner-secret-namespace" = namespace;
+            "csi.storage.k8s.io/controller-expand-secret-name" = "csi-cephfs-secret";
+            "csi.storage.k8s.io/controller-expand-secret-namespace" = namespace;
+            "csi.storage.k8s.io/node-stage-secret-name" = "csi-cephfs-secret";
+            "csi.storage.k8s.io/node-stage-secret-namespace" = namespace;
+            "clusterID" = if cfg.sops.enable then 
+              (decryptSOPS cfg.sops.secretsFile "ceph").clusterID
+              else cfg.cluster.clusterID;
+            "fsName" = cfg.cephfs.storageClass.fsName;
+            "pool" = cfg.cephfs.storageClass.pool;
+          };
+          reclaimPolicy = cfg.cephfs.storageClass.reclaimPolicy;
+          allowVolumeExpansion = cfg.cephfs.storageClass.allowVolumeExpansion;
+          volumeBindingMode = "Immediate";
+        };
+
+        # CSI Driver deployments (simplified version)
+        deployments.csi-rbd-provisioner = lib.mkIf cfg.rbd.enable {
+          spec = {
+            replicas = 3;
+            selector.matchLabels."app" = "csi-rbd-provisioner";
+            template.metadata.labels."app" = "csi-rbd-provisioner";
+            template.spec = {
+              serviceAccountName = "rbd-csi-provisioner";
+              containers = [
+                {
+                  name = "csi-rbd-provisioner";
+                  image = "quay.io/cephcsi/cephcsi:${cfg.version}";
+                  args = [
+                    "--nodeid=$(NODE_ID)"
+                    "--endpoint=$(CSI_ENDPOINT)"
+                    "--v=5"
+                    "--drivername=rbd.csi.ceph.com"
+                    "--pidlimit=-1"
+                  ];
+                  env = [
+                    { name = "NODE_ID"; valueFrom.fieldRef.fieldPath = "spec.nodeName"; }
+                    { name = "CSI_ENDPOINT"; value = "unix:///csi/csi-provisioner.sock"; }
+                  ];
+                  volumeMounts = [
+                    { name = "socket-dir"; mountPath = "/csi"; }
+                    { name = "host-mount"; mountPath = "/var/lib/kubelet/pods"; mountPropagation = "Bidirectional"; }
+                    { name = "ceph-csi-config"; mountPath = "/etc/ceph-csi-config/"; readOnly = true; }
+                  ];
+                }
+              ];
+              volumes = [
+                { name = "socket-dir"; emptyDir = {}; }
+                { name = "host-mount"; hostPath.path = "/var/lib/kubelet/pods"; }
+                { name = "ceph-csi-config"; configMap.name = "ceph-csi-config"; }
+              ];
+            };
+          };
+        };
+
+        # Service accounts and RBAC
+        serviceAccounts = {
+          rbd-csi-provisioner = lib.mkIf cfg.rbd.enable {};
+          rbd-csi-nodeplugin = lib.mkIf cfg.rbd.enable {};
+          cephfs-csi-provisioner = lib.mkIf cfg.cephfs.enable {};
+          cephfs-csi-nodeplugin = lib.mkIf cfg.cephfs.enable {};
+        };
+
+        # Cluster roles for the provisioner
         clusterRoles.rbd-external-provisioner-runner = lib.mkIf cfg.rbd.enable {
           rules = [
             {
@@ -298,529 +385,6 @@ in
             }
           ];
         };
-
-        clusterRoleBindings.rbd-csi-provisioner-role = lib.mkIf cfg.rbd.enable {
-          subjects = [{
-            kind = "ServiceAccount";
-            name = "rbd-csi-provisioner";
-            namespace = namespace;
-          }];
-          roleRef = {
-            kind = "ClusterRole";
-            name = "rbd-external-provisioner-runner";
-            apiGroup = "rbac.authorization.k8s.io";
-          };
-        };
-
-        # RBD Node Plugin RBAC
-        serviceAccounts.rbd-csi-nodeplugin = lib.mkIf cfg.rbd.enable {};
-
-        clusterRoles.rbd-csi-nodeplugin = lib.mkIf cfg.rbd.enable {
-          rules = [
-            {
-              apiGroups = [""];
-              resources = ["nodes"];
-              verbs = ["get"];
-            }
-          ];
-        };
-
-        clusterRoleBindings.rbd-csi-nodeplugin = lib.mkIf cfg.rbd.enable {
-          subjects = [{
-            kind = "ServiceAccount";
-            name = "rbd-csi-nodeplugin";
-            namespace = namespace;
-          }];
-          roleRef = {
-            kind = "ClusterRole";
-            name = "rbd-csi-nodeplugin";
-            apiGroup = "rbac.authorization.k8s.io";
-          };
-        };
-
-        # RBD Provisioner Deployment
-        deployments.csi-rbdplugin-provisioner = lib.mkIf cfg.rbd.enable {
-          spec = {
-            replicas = 3;
-            selector.matchLabels = {
-              app = "csi-rbdplugin-provisioner";
-            };
-            template = {
-              metadata.labels = {
-                app = "csi-rbdplugin-provisioner";
-              };
-              spec = {
-                serviceAccountName = "rbd-csi-provisioner";
-                containers = [
-                  {
-                    name = "csi-provisioner";
-                    image = "registry.k8s.io/sig-storage/csi-provisioner:v5.0.1";
-                    args = [
-                      "--csi-address=$(ADDRESS)"
-                      "--v=2"
-                      "--timeout=150s"
-                      "--retry-interval-start=500ms"
-                      "--leader-election=true"
-                      "--default-fstype=ext4"
-                      "--extra-create-metadata=true"
-                    ];
-                    env = [{
-                      name = "ADDRESS";
-                      value = "unix:///csi/csi-provisioner.sock";
-                    }];
-                    volumeMounts = [{
-                      name = "socket-dir";
-                      mountPath = "/csi";
-                    }];
-                  }
-                  {
-                    name = "csi-resizer";
-                    image = "registry.k8s.io/sig-storage/csi-resizer:v1.12.0";
-                    args = [
-                      "--csi-address=$(ADDRESS)"
-                      "--v=2"
-                      "--timeout=150s"
-                      "--leader-election"
-                      "--retry-interval-start=500ms"
-                      "--handle-volume-inuse-error=false"
-                      "--feature-gates=RecoverVolumeExpansionFailure=true"
-                    ];
-                    env = [{
-                      name = "ADDRESS";
-                      value = "unix:///csi/csi-provisioner.sock";
-                    }];
-                    volumeMounts = [{
-                      name = "socket-dir";
-                      mountPath = "/csi";
-                    }];
-                  }
-                  {
-                    name = "csi-attacher";
-                    image = "registry.k8s.io/sig-storage/csi-attacher:v4.7.0";
-                    args = [
-                      "--v=2"
-                      "--csi-address=$(ADDRESS)"
-                      "--timeout=150s"
-                      "--leader-election=true"
-                      "--retry-interval-start=500ms"
-                    ];
-                    env = [{
-                      name = "ADDRESS";
-                      value = "unix:///csi/csi-provisioner.sock";
-                    }];
-                    volumeMounts = [{
-                      name = "socket-dir";
-                      mountPath = "/csi";
-                    }];
-                  }
-                  {
-                    name = "csi-snapshotter";
-                    image = "registry.k8s.io/sig-storage/csi-snapshotter:v8.1.0";
-                    args = [
-                      "--csi-address=$(ADDRESS)"
-                      "--v=2"
-                      "--timeout=150s"
-                      "--leader-election=true"
-                      "--extra-create-metadata=true"
-                    ];
-                    env = [{
-                      name = "ADDRESS";
-                      value = "unix:///csi/csi-provisioner.sock";
-                    }];
-                    volumeMounts = [{
-                      name = "socket-dir";
-                      mountPath = "/csi";
-                    }];
-                  }
-                  {
-                    name = "csi-rbdplugin";
-                    image = "quay.io/cephcsi/cephcsi:${cfg.version}";
-                    args = [
-                      "--nodeid=$(NODE_ID)"
-                      "--type=rbd"
-                      "--controllerserver=true"
-                      "--endpoint=$(CSI_ENDPOINT)"
-                      "--csi-addons-endpoint=$(CSI_ADDONS_ENDPOINT)"
-                      "--v=2"
-                      "--drivername=rbd.csi.ceph.com"
-                      "--pidlimit=-1"
-                      "--rbdhardmaxclonedepth=8"
-                      "--rbdsoftmaxclonedepth=4"
-                      "--enableprofiling=false"
-                    ];
-                    env = [
-                      {
-                        name = "NODE_ID";
-                        valueFrom.fieldRef.fieldPath = "spec.nodeName";
-                      }
-                      {
-                        name = "CSI_ENDPOINT";
-                        value = "unix:///csi/csi-provisioner.sock";
-                      }
-                      {
-                        name = "CSI_ADDONS_ENDPOINT";
-                        value = "unix:///csi/csi-addons.sock";
-                      }
-                      {
-                        name = "POD_IP";
-                        valueFrom.fieldRef.fieldPath = "status.podIP";
-                      }
-                    ];
-                    volumeMounts = [
-                      {
-                        name = "socket-dir";
-                        mountPath = "/csi";
-                      }
-                      {
-                        name = "host-dev";
-                        mountPath = "/dev";
-                      }
-                      {
-                        name = "host-sys";
-                        mountPath = "/sys";
-                      }
-                      {
-                        name = "lib-modules";
-                        mountPath = "/lib/modules";
-                        readOnly = true;
-                      }
-                      {
-                        name = "ceph-csi-config";
-                        mountPath = "/etc/ceph-csi-config/";
-                      }
-                      {
-                        name = "ceph-csi-encryption-kms-config";
-                        mountPath = "/etc/ceph-csi-encryption-kms-config/";
-                      }
-                      {
-                        name = "keys-tmp-dir";
-                        mountPath = "/tmp/csi/keys";
-                      }
-                      {
-                        name = "ceph-config";
-                        mountPath = "/etc/ceph/";
-                      }
-                    ];
-                  }
-                  {
-                    name = "liveness-prometheus";
-                    image = "quay.io/cephcsi/cephcsi:${cfg.version}";
-                    args = [
-                      "--type=liveness"
-                      "--endpoint=$(CSI_ENDPOINT)"
-                      "--metricsport=8080"
-                      "--metricspath=/metrics"
-                      "--polltime=60s"
-                      "--timeout=3s"
-                    ];
-                    env = [{
-                      name = "CSI_ENDPOINT";
-                      value = "unix:///csi/csi-provisioner.sock";
-                    }];
-                    volumeMounts = [{
-                      name = "socket-dir";
-                      mountPath = "/csi";
-                    }];
-                    ports = [{
-                      name = "http-metrics";
-                      containerPort = 8080;
-                      protocol = "TCP";
-                    }];
-                  }
-                ];
-                volumes = [
-                  {
-                    name = "socket-dir";
-                    emptyDir = {
-                      medium = "Memory";
-                    };
-                  }
-                  {
-                    name = "host-dev";
-                    hostPath.path = "/dev";
-                  }
-                  {
-                    name = "host-sys";
-                    hostPath.path = "/sys";
-                  }
-                  {
-                    name = "lib-modules";
-                    hostPath.path = "/lib/modules";
-                  }
-                  {
-                    name = "ceph-csi-config";
-                    configMap.name = "ceph-csi-config";
-                  }
-                  {
-                    name = "ceph-csi-encryption-kms-config";
-                    configMap.name = "ceph-csi-encryption-kms-config";
-                  }
-                  {
-                    name = "keys-tmp-dir";
-                    emptyDir = {
-                      medium = "Memory";
-                    };
-                  }
-                  {
-                    name = "ceph-config";
-                    emptyDir = {};
-                  }
-                ];
-              };
-            };
-          };
-        };
-
-        # RBD Node Plugin DaemonSet
-        daemonSets.csi-rbdplugin = lib.mkIf cfg.rbd.enable {
-          spec = {
-            selector.matchLabels = {
-              app = "csi-rbdplugin";
-            };
-            template = {
-              metadata.labels = {
-                app = "csi-rbdplugin";
-              };
-              spec = {
-                serviceAccountName = "rbd-csi-nodeplugin";
-                hostNetwork = true;
-                hostPID = true;
-                priorityClassName = "system-node-critical";
-                containers = [
-                  {
-                    name = "driver-registrar";
-                    image = "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.12.0";
-                    args = [
-                      "--v=2"
-                      "--csi-address=/csi/csi.sock"
-                      "--kubelet-registration-path=/var/lib/kubelet/plugins/rbd.csi.ceph.com/csi.sock"
-                    ];
-                    env = [{
-                      name = "KUBE_NODE_NAME";
-                      valueFrom.fieldRef.fieldPath = "spec.nodeName";
-                    }];
-                    volumeMounts = [
-                      {
-                        name = "plugin-dir";
-                        mountPath = "/csi";
-                      }
-                      {
-                        name = "registration-dir";
-                        mountPath = "/registration";
-                      }
-                    ];
-                  }
-                  {
-                    name = "csi-rbdplugin";
-                    image = "quay.io/cephcsi/cephcsi:${cfg.version}";
-                    args = [
-                      "--nodeid=$(NODE_ID)"
-                      "--type=rbd"
-                      "--nodeserver=true"
-                      "--endpoint=$(CSI_ENDPOINT)"
-                      "--csi-addons-endpoint=$(CSI_ADDONS_ENDPOINT)"
-                      "--v=2"
-                      "--drivername=rbd.csi.ceph.com"
-                      "--enableprofiling=false"
-                    ];
-                    env = [
-                      {
-                        name = "NODE_ID";
-                        valueFrom.fieldRef.fieldPath = "spec.nodeName";
-                      }
-                      {
-                        name = "CSI_ENDPOINT";
-                        value = "unix:///csi/csi.sock";
-                      }
-                      {
-                        name = "CSI_ADDONS_ENDPOINT";
-                        value = "unix:///csi/csi-addons.sock";
-                      }
-                      {
-                        name = "POD_IP";
-                        valueFrom.fieldRef.fieldPath = "status.podIP";
-                      }
-                    ];
-                    securityContext = {
-                      privileged = true;
-                      capabilities = {
-                        add = ["SYS_ADMIN"];
-                      };
-                      allowPrivilegeEscalation = true;
-                    };
-                    volumeMounts = [
-                      {
-                        name = "plugin-dir";
-                        mountPath = "/csi";
-                      }
-                      {
-                        name = "csi-plugins-dir";
-                        mountPath = "/var/lib/kubelet/plugins";
-                        mountPropagation = "Bidirectional";
-                      }
-                      {
-                        name = "pods-mount-dir";
-                        mountPath = "/var/lib/kubelet/pods";
-                        mountPropagation = "Bidirectional";
-                      }
-                      {
-                        name = "host-dev";
-                        mountPath = "/dev";
-                      }
-                      {
-                        name = "host-sys";
-                        mountPath = "/sys";
-                      }
-                      {
-                        name = "lib-modules";
-                        mountPath = "/lib/modules";
-                        readOnly = true;
-                      }
-                      {
-                        name = "ceph-csi-config";
-                        mountPath = "/etc/ceph-csi-config/";
-                      }
-                      {
-                        name = "ceph-csi-encryption-kms-config";
-                        mountPath = "/etc/ceph-csi-encryption-kms-config/";
-                      }
-                      {
-                        name = "keys-tmp-dir";
-                        mountPath = "/tmp/csi/keys";
-                      }
-                      {
-                        name = "ceph-config";
-                        mountPath = "/etc/ceph/";
-                      }
-                    ];
-                  }
-                  {
-                    name = "liveness-prometheus";
-                    image = "quay.io/cephcsi/cephcsi:${cfg.version}";
-                    args = [
-                      "--type=liveness"
-                      "--endpoint=$(CSI_ENDPOINT)"
-                      "--metricsport=8080"
-                      "--metricspath=/metrics"
-                      "--polltime=60s"
-                      "--timeout=3s"
-                    ];
-                    env = [{
-                      name = "CSI_ENDPOINT";
-                      value = "unix:///csi/csi.sock";
-                    }];
-                    volumeMounts = [{
-                      name = "plugin-dir";
-                      mountPath = "/csi";
-                    }];
-                    ports = [{
-                      name = "http-metrics";
-                      containerPort = 8080;
-                      protocol = "TCP";
-                    }];
-                  }
-                ];
-                volumes = [
-                  {
-                    name = "plugin-dir";
-                    hostPath = {
-                      path = "/var/lib/kubelet/plugins/rbd.csi.ceph.com";
-                      type = "DirectoryOrCreate";
-                    };
-                  }
-                  {
-                    name = "csi-plugins-dir";
-                    hostPath = {
-                      path = "/var/lib/kubelet/plugins";
-                      type = "Directory";
-                    };
-                  }
-                  {
-                    name = "registration-dir";
-                    hostPath = {
-                      path = "/var/lib/kubelet/plugins_registry";
-                      type = "Directory";
-                    };
-                  }
-                  {
-                    name = "pods-mount-dir";
-                    hostPath = {
-                      path = "/var/lib/kubelet/pods";
-                      type = "Directory";
-                    };
-                  }
-                  {
-                    name = "host-dev";
-                    hostPath.path = "/dev";
-                  }
-                  {
-                    name = "host-sys";
-                    hostPath.path = "/sys";
-                  }
-                  {
-                    name = "lib-modules";
-                    hostPath.path = "/lib/modules";
-                  }
-                  {
-                    name = "ceph-csi-config";
-                    configMap.name = "ceph-csi-config";
-                  }
-                  {
-                    name = "ceph-csi-encryption-kms-config";
-                    configMap.name = "ceph-csi-encryption-kms-config";
-                  }
-                  {
-                    name = "keys-tmp-dir";
-                    emptyDir = {
-                      medium = "Memory";
-                    };
-                  }
-                  {
-                    name = "ceph-config";
-                    emptyDir = {};
-                  }
-                ];
-              };
-            };
-          };
-        };
-
-        # RBD Storage Class
-        storageClasses.${cfg.rbd.storageClass.name} = lib.mkIf cfg.rbd.enable {
-          provisioner = "rbd.csi.ceph.com";
-          parameters = {
-            clusterID = cfg.cluster.clusterID;
-            pool = cfg.rbd.storageClass.pool;
-            imageFeatures = cfg.rbd.storageClass.imageFeatures;
-            "csi.storage.k8s.io/provisioner-secret-name" = "csi-rbd-secret";
-            "csi.storage.k8s.io/provisioner-secret-namespace" = namespace;
-            "csi.storage.k8s.io/controller-expand-secret-name" = "csi-rbd-secret";
-            "csi.storage.k8s.io/controller-expand-secret-namespace" = namespace;
-            "csi.storage.k8s.io/node-stage-secret-name" = "csi-rbd-secret";
-            "csi.storage.k8s.io/node-stage-secret-namespace" = namespace;
-          };
-          reclaimPolicy = cfg.rbd.storageClass.reclaimPolicy;
-          allowVolumeExpansion = cfg.rbd.storageClass.allowVolumeExpansion;
-          mountOptions = [ "discard" ];
-        };
-
-        # CephFS Storage Class
-        storageClasses.${cfg.cephfs.storageClass.name} = lib.mkIf cfg.cephfs.enable {
-          provisioner = "cephfs.csi.ceph.com";
-          parameters = {
-            clusterID = cfg.cluster.clusterID;
-            fsName = cfg.cephfs.storageClass.fsName;
-            "csi.storage.k8s.io/provisioner-secret-name" = "csi-cephfs-secret";
-            "csi.storage.k8s.io/provisioner-secret-namespace" = namespace;
-            "csi.storage.k8s.io/controller-expand-secret-name" = "csi-cephfs-secret";
-            "csi.storage.k8s.io/controller-expand-secret-namespace" = namespace;
-            "csi.storage.k8s.io/node-stage-secret-name" = "csi-cephfs-secret";
-            "csi.storage.k8s.io/node-stage-secret-namespace" = namespace;
-          };
-          reclaimPolicy = cfg.cephfs.storageClass.reclaimPolicy;
-          allowVolumeExpansion = cfg.cephfs.storageClass.allowVolumeExpansion;
-        };
-
       };
     };
   };

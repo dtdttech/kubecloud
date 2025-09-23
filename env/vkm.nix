@@ -30,7 +30,7 @@
         enable = true;
         # Enable SOPS-based secret management
         sops = {
-          enable = false;  # Temporarily disabled due to path resolution issues
+          enable = false;  # SOPS integration framework ready, but disabled due to pure evaluation constraints
           secretsFile = ../../secrets/vkm.sops.yaml;
           secretsPath = "ceph";
         };
