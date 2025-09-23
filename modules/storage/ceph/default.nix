@@ -1,8 +1,6 @@
-{ lib, config, pkgs, ... }:
+{ lib, config, pkgs, charts, ... }:
 
-# Import generated CRDs
 let
-  cephCsiCrds = import ./generated.nix;
 
   # Simple SOPS integration - decrypt secrets at build time
   decryptSOPS = secretsFile: path:
@@ -168,33 +166,30 @@ in
       inherit namespace;
       createNamespace = true;
 
-      # Import generated CRDs
-      imports = [cephCsiCrds];
-
-      # Ceph CSI configuration
-      resources = {
-        # ConfigMap with cluster information
-        configMaps.ceph-csi-config = {
-          data = {
-            "config.json" = builtins.toJSON [
-              (if cfg.sops.enable then 
-                let sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
-                in {
-                  clusterID = sopsData.clusterID;
-                  monitors = sopsData.monitors;
-                }
-              else {
-                clusterID = cfg.cluster.clusterID;
-                monitors = cfg.cluster.monitors;
-              })
-            ];
-          };
-        };
-
-        # RBD Secret
-        secrets.csi-rbd-secret = lib.mkIf cfg.rbd.enable {
-          stringData = 
-            if cfg.sops.enable then 
+      # Use Helm chart for Ceph CSI - install both RBD and CephFS separately
+      helm.releases = {
+        # RBD CSI Driver
+        ceph-csi-rbd = lib.mkIf cfg.rbd.enable {
+          chart = "${../../../charts/ceph-csi-rbd}";
+          
+          values = {
+            # Basic configuration
+            fullnameOverride = "ceph-csi-rbd";
+            
+            # Ceph cluster configuration
+            csiConfig = if cfg.sops.enable then 
+              let sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
+              in [{
+                clusterID = sopsData.clusterID;
+                monitors = sopsData.monitors;
+              }]
+            else [{
+              clusterID = cfg.cluster.clusterID;
+              monitors = cfg.cluster.monitors;
+            }];
+            
+            # Secret management
+            secret = if cfg.sops.enable then 
               let sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
               in {
                 userID = sopsData.userID;
@@ -208,12 +203,59 @@ in
               adminID = cfg.secrets.adminID;
               adminKey = cfg.secrets.adminKey;
             };
+            
+            # Driver configuration
+            provisioner = {
+              replicaCount = 3;
+              image = "quay.io/cephcsi/cephcsi:${cfg.version}";
+            };
+            nodePlugin = {
+              replicaCount = 3;
+              image = "quay.io/cephcsi/cephcsi:${cfg.version}";
+            };
+            
+            # StorageClass
+            storageClass = {
+              create = true;
+              name = cfg.rbd.storageClass.name;
+              pool = cfg.rbd.storageClass.pool;
+              reclaimPolicy = cfg.rbd.storageClass.reclaimPolicy;
+              allowVolumeExpansion = cfg.rbd.storageClass.allowVolumeExpansion;
+              parameters = {
+                "imageFormat" = "2";
+                "imageFeatures" = "layering";
+              };
+            };
+            
+            # RBAC
+            rbac.create = true;
+            serviceAccounts.nodeplugin.create = true;
+            serviceAccounts.provisioner.create = true;
+          };
         };
-
-        # CephFS Secret  
-        secrets.csi-cephfs-secret = lib.mkIf cfg.cephfs.enable {
-          stringData = 
-            if cfg.sops.enable then 
+        
+        # CephFS CSI Driver
+        ceph-csi-cephfs = lib.mkIf cfg.cephfs.enable {
+          chart = "${../../../charts/ceph-csi-cephfs}";
+          
+          values = {
+            # Basic configuration
+            fullnameOverride = "ceph-csi-cephfs";
+            
+            # Ceph cluster configuration
+            csiConfig = if cfg.sops.enable then 
+              let sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
+              in [{
+                clusterID = sopsData.clusterID;
+                monitors = sopsData.monitors;
+              }]
+            else [{
+              clusterID = cfg.cluster.clusterID;
+              monitors = cfg.cluster.monitors;
+            }];
+            
+            # Secret management
+            secret = if cfg.sops.enable then 
               let sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
               in {
                 adminID = sopsData.adminID;
@@ -223,167 +265,32 @@ in
               adminID = cfg.secrets.adminID;
               adminKey = cfg.secrets.adminKey;
             };
-        };
-
-        # RBD StorageClass
-        storageClasses.${cfg.rbd.storageClass.name} = lib.mkIf cfg.rbd.enable {
-          provisioner = "rbd.csi.ceph.com";
-          parameters = {
-            "csi.storage.k8s.io/provisioner-secret-name" = "csi-rbd-secret";
-            "csi.storage.k8s.io/provisioner-secret-namespace" = namespace;
-            "csi.storage.k8s.io/controller-expand-secret-name" = "csi-rbd-secret";
-            "csi.storage.k8s.io/controller-expand-secret-namespace" = namespace;
-            "csi.storage.k8s.io/node-stage-secret-name" = "csi-rbd-secret";
-            "csi.storage.k8s.io/node-stage-secret-namespace" = namespace;
-            "clusterID" = if cfg.sops.enable then 
-              (decryptSOPS cfg.sops.secretsFile "ceph").clusterID
-              else cfg.cluster.clusterID;
-            "pool" = cfg.rbd.storageClass.pool;
-            "imageFormat" = "2";
-            "imageFeatures" = "layering";
-          };
-          reclaimPolicy = cfg.rbd.storageClass.reclaimPolicy;
-          allowVolumeExpansion = cfg.rbd.storageClass.allowVolumeExpansion;
-          volumeBindingMode = "Immediate";
-        };
-
-        # CephFS StorageClass
-        storageClasses.${cfg.cephfs.storageClass.name} = lib.mkIf cfg.cephfs.enable {
-          provisioner = "cephfs.csi.ceph.com";
-          parameters = {
-            "csi.storage.k8s.io/provisioner-secret-name" = "csi-cephfs-secret";
-            "csi.storage.k8s.io/provisioner-secret-namespace" = namespace;
-            "csi.storage.k8s.io/controller-expand-secret-name" = "csi-cephfs-secret";
-            "csi.storage.k8s.io/controller-expand-secret-namespace" = namespace;
-            "csi.storage.k8s.io/node-stage-secret-name" = "csi-cephfs-secret";
-            "csi.storage.k8s.io/node-stage-secret-namespace" = namespace;
-            "clusterID" = if cfg.sops.enable then 
-              (decryptSOPS cfg.sops.secretsFile "ceph").clusterID
-              else cfg.cluster.clusterID;
-            "fsName" = cfg.cephfs.storageClass.fsName;
-            "pool" = cfg.cephfs.storageClass.pool;
-          };
-          reclaimPolicy = cfg.cephfs.storageClass.reclaimPolicy;
-          allowVolumeExpansion = cfg.cephfs.storageClass.allowVolumeExpansion;
-          volumeBindingMode = "Immediate";
-        };
-
-        # CSI Driver deployments (simplified version)
-        deployments.csi-rbd-provisioner = lib.mkIf cfg.rbd.enable {
-          spec = {
-            replicas = 3;
-            selector.matchLabels."app" = "csi-rbd-provisioner";
-            template.metadata.labels."app" = "csi-rbd-provisioner";
-            template.spec = {
-              serviceAccountName = "rbd-csi-provisioner";
-              containers = [
-                {
-                  name = "csi-rbd-provisioner";
-                  image = "quay.io/cephcsi/cephcsi:${cfg.version}";
-                  args = [
-                    "--nodeid=$(NODE_ID)"
-                    "--endpoint=$(CSI_ENDPOINT)"
-                    "--v=5"
-                    "--drivername=rbd.csi.ceph.com"
-                    "--pidlimit=-1"
-                  ];
-                  env = [
-                    { name = "NODE_ID"; valueFrom.fieldRef.fieldPath = "spec.nodeName"; }
-                    { name = "CSI_ENDPOINT"; value = "unix:///csi/csi-provisioner.sock"; }
-                  ];
-                  volumeMounts = [
-                    { name = "socket-dir"; mountPath = "/csi"; }
-                    { name = "host-mount"; mountPath = "/var/lib/kubelet/pods"; mountPropagation = "Bidirectional"; }
-                    { name = "ceph-csi-config"; mountPath = "/etc/ceph-csi-config/"; readOnly = true; }
-                  ];
-                }
-              ];
-              volumes = [
-                { name = "socket-dir"; emptyDir = {}; }
-                { name = "host-mount"; hostPath.path = "/var/lib/kubelet/pods"; }
-                { name = "ceph-csi-config"; configMap.name = "ceph-csi-config"; }
-              ];
+            
+            # Driver configuration
+            provisioner = {
+              replicaCount = 3;
+              image = "quay.io/cephcsi/cephcsi:${cfg.version}";
             };
+            nodePlugin = {
+              replicaCount = 3;
+              image = "quay.io/cephcsi/cephcsi:${cfg.version}";
+            };
+            
+            # StorageClass
+            storageClass = {
+              create = true;
+              name = cfg.cephfs.storageClass.name;
+              pool = cfg.cephfs.storageClass.pool;
+              fsName = cfg.cephfs.storageClass.fsName;
+              reclaimPolicy = cfg.cephfs.storageClass.reclaimPolicy;
+              allowVolumeExpansion = cfg.cephfs.storageClass.allowVolumeExpansion;
+            };
+            
+            # RBAC
+            rbac.create = true;
+            serviceAccounts.nodeplugin.create = true;
+            serviceAccounts.provisioner.create = true;
           };
-        };
-
-        # Service accounts and RBAC
-        serviceAccounts = {
-          rbd-csi-provisioner = lib.mkIf cfg.rbd.enable {};
-          rbd-csi-nodeplugin = lib.mkIf cfg.rbd.enable {};
-          cephfs-csi-provisioner = lib.mkIf cfg.cephfs.enable {};
-          cephfs-csi-nodeplugin = lib.mkIf cfg.cephfs.enable {};
-        };
-
-        # Cluster roles for the provisioner
-        clusterRoles.rbd-external-provisioner-runner = lib.mkIf cfg.rbd.enable {
-          rules = [
-            {
-              apiGroups = [""];
-              resources = ["secrets"];
-              verbs = ["get" "list"];
-            }
-            {
-              apiGroups = [""];
-              resources = ["persistentvolumes"];
-              verbs = ["get" "list" "watch" "create" "delete"];
-            }
-            {
-              apiGroups = [""];
-              resources = ["persistentvolumeclaims"];
-              verbs = ["get" "list" "watch" "update"];
-            }
-            {
-              apiGroups = ["storage.k8s.io"];
-              resources = ["storageclasses"];
-              verbs = ["get" "list" "watch"];
-            }
-            {
-              apiGroups = [""];
-              resources = ["events"];
-              verbs = ["list" "watch" "create" "update" "patch"];
-            }
-            {
-              apiGroups = ["snapshot.storage.k8s.io"];
-              resources = ["volumesnapshots"];
-              verbs = ["get" "list"];
-            }
-            {
-              apiGroups = ["snapshot.storage.k8s.io"];
-              resources = ["volumesnapshotcontents"];
-              verbs = ["create" "get" "list" "watch" "update" "delete"];
-            }
-            {
-              apiGroups = ["snapshot.storage.k8s.io"];
-              resources = ["volumesnapshotclasses"];
-              verbs = ["get" "list" "watch"];
-            }
-            {
-              apiGroups = ["storage.k8s.io"];
-              resources = ["volumeattachments"];
-              verbs = ["get" "list" "watch" "update" "patch"];
-            }
-            {
-              apiGroups = ["storage.k8s.io"];
-              resources = ["volumeattachments/status"];
-              verbs = ["patch"];
-            }
-            {
-              apiGroups = ["storage.k8s.io"];
-              resources = ["csinodes"];
-              verbs = ["get" "list" "watch"];
-            }
-            {
-              apiGroups = [""];
-              resources = ["nodes"];
-              verbs = ["get" "list" "watch"];
-            }
-            {
-              apiGroups = ["coordination.k8s.io"];
-              resources = ["leases"];
-              verbs = ["get" "watch" "list" "delete" "update" "create"];
-            }
-          ];
         };
       };
     };

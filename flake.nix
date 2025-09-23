@@ -35,7 +35,23 @@
     };
     envs = nixidy.lib.mkEnvs {
       inherit pkgs;
-      charts = nixhelm.chartsDerivations.${system};
+      charts = nixhelm.chartsDerivations.${system} // {
+        # Local Ceph CSI charts
+        ceph-csi-rbd = pkgs.runCommand "ceph-csi-rbd-chart" {
+          src = ./charts/ceph-csi-rbd;
+          buildInputs = [ pkgs.kubernetes-helm ];
+        } ''
+          mkdir -p $out
+          cp -r $src/* $out/
+        '';
+        ceph-csi-cephfs = pkgs.runCommand "ceph-csi-cephfs-chart" {
+          src = ./charts/ceph-csi-cephfs;
+          buildInputs = [ pkgs.kubernetes-helm ];
+        } ''
+          mkdir -p $out
+          cp -r $src/* $out/
+        '';
+      };
       envs = {
         prod = {
           modules = [
