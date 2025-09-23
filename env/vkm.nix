@@ -2,9 +2,9 @@
   nixidy = {
     bootstrapManifest.enable = true;
     target = {
-      repository = "https://github.com/dtdttech/kubecloud.git";
+      repository = "https://github.com/dtdttech/kubevkm_rendered.git";
       branch = "master";
-      rootPath = "./rendered/vkm";
+      rootPath = ".";
     };
     extraFiles."README.md".text = ''
       # Rendered manifests for VKM
