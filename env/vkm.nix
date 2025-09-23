@@ -167,6 +167,67 @@
     };
   };
 
+  # Monitoring configuration for VKM
+  monitoring = {
+    prometheus = {
+      enable = true;
+      values = {
+        alertmanager.enabled = false;
+        pushgateway.enabled = false;
+        kubeStateMetrics.enabled = true;
+        prometheus = {
+          prometheusSpec = {
+            retention = "15d";
+            storageSpec = {
+              volumeClaimTemplate = {
+                spec = {
+                  storageClassName = "ceph-rbd";
+                  accessModes = ["ReadWriteOnce"];
+                  resources = {
+                    requests = {
+                      storage = "20Gi";
+                    };
+                  };
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+    
+    grafana = {
+      enable = true;
+      values = {
+        persistence = {
+          enabled = true;
+          size = "10Gi";
+          storageClassName = "ceph-rbd";
+        };
+        adminUser = "admin";
+        adminPassword = "grafana_vkm_admin123";
+        ingress = {
+          enabled = true;
+          hosts = ["grafana.vkm.maschinenbau.tu-darmstadt.de"];
+          ingressClassName = "traefik";
+          annotations = {
+            "traefik.ingress.kubernetes.io/router.middlewares" = "traefik-dashboard-auth@kubernetescrd";
+          };
+        };
+        resources = {
+          limits = {
+            cpu = "500m";
+            memory = "512Mi";
+          };
+          requests = {
+            cpu = "200m";
+            memory = "256Mi";
+          };
+        };
+      };
+    };
+  };
+
   # support.zammad = {
   #   enable = true;
   #   domain = "support.vkm.maschinenbau.tu-darmstadt.de";
