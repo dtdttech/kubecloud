@@ -16,18 +16,41 @@
   
   networking.domain = "vkm.maschinenbau.tu-darmstadt.de";
 
-  # Storage configuration for VKM testing environment
+  # Storage configuration for VKM production environment
   storage = {
-    defaultProvider = "local";  # Use local storage for testing
+    defaultProvider = "ceph";  # Use Ceph for production storage
     storageClasses = {
-      rwo = "local-path";      # ReadWriteOnce uses local storage
-      rwx = "local-path";      # ReadWriteMany uses local storage (note: local doesn't support RWX)
-      rox = "local-path";      # ReadOnlyMany uses local storage
+      rwo = "ceph-rbd";        # ReadWriteOnce uses RBD (block storage)
+      rwx = "ceph-cephfs";     # ReadWriteMany uses CephFS (filesystem)
+      rox = "ceph-cephfs";     # ReadOnlyMany uses CephFS (filesystem)
     };
     providers = {
-      local.enable = true;     # Enable local storage for testing
-      ceph.enable = false;     # Disable Ceph for testing
-      longhorn.enable = false; # Disable Longhorn
+      local.enable = false;    # Disable local storage in production
+      ceph = {
+        enable = true;
+        # Enable SOPS-based secret management
+        sops = {
+          enable = false;  # Temporarily disabled due to path resolution issues
+          secretsFile = ../../secrets/vkm.sops.yaml;
+          secretsPath = "ceph";
+        };
+        # Fallback configuration (used when SOPS is disabled)
+        cluster = {
+          clusterID = "c6d024a4-5b8e-4c2d-9331-fba950fd3f13";
+          monitors = [
+            "130.83.206.213:6789"
+            "130.83.206.132:6789"
+            "130.83.206.142:6789"
+          ];
+        };
+        secrets = {
+          userID = "kubernetes";
+          userKey = "AQClE9NommrPExAAUq2lxa+afoMK1Y7FRWWtEw==";
+          adminID = "kube-admin";
+          adminKey = "AQAGFNNo4lcvFRAAXAz/2EObhlGla3x95hmKkQ==";
+        };
+      };
+      longhorn.enable = false; # Disable Longhorn (using Ceph instead)
     };
   };
 
