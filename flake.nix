@@ -14,6 +14,11 @@
       url = "github:farcaller/nixhelm";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
 
@@ -23,6 +28,7 @@
     flake-utils,
     nixidy,
     nixhelm,
+    sops-nix,
   }: (flake-utils.lib.eachDefaultSystem (system: let
     pkgs = import nixpkgs {
       inherit system;

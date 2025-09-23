@@ -28,6 +28,13 @@
       local.enable = false;    # Disable local storage in production
       ceph = {
         enable = true;
+        # Enable SOPS-based secret management
+        sops = {
+          enable = false;  # Temporarily disabled due to path resolution issues
+          secretsFile = ../../secrets/vkm.sops.yaml;
+          secretsPath = "ceph";
+        };
+        # Fallback configuration (used when SOPS is disabled)
         cluster = {
           clusterID = "vkm-ceph-cluster";
           monitors = [

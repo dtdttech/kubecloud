@@ -1,0 +1,22 @@
+keys:
+  # Age public key for kubecloud secrets
+  - &admin_key age132yu935j0k8cl28psdqkyca5kcj03s64grtky8xv4hmzllr6ls3shta56p
+
+creation_rules:
+  # VKM environment secrets
+  - path_regex: secrets/vkm\.sops\.yaml$
+    key_groups:
+      - age:
+          - *admin_key
+  
+  # Production environment secrets  
+  - path_regex: secrets/prod\.sops\.yaml$
+    key_groups:
+      - age:
+          - *admin_key
+          
+  # Development environment secrets
+  - path_regex: secrets/dev\.sops\.yaml$
+    key_groups:
+      - age:
+          - *admin_key

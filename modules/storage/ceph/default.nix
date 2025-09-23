@@ -1,8 +1,21 @@
-{ lib, config, ... }:
+{ lib, config, pkgs, ... }:
 
 # Import generated CRDs
 let
   cephCsiCrds = import ./generated.nix;
+
+  # Simple SOPS integration - decrypt secrets at build time
+  decryptSOPS = secretsFile: path:
+    let
+      sopsCmd = "${pkgs.sops}/bin/sops";
+      decryptedJSON = builtins.readFile (pkgs.runCommand "decrypt-sops-${builtins.baseNameOf secretsFile}" {
+        buildInputs = [ pkgs.sops ];
+      } ''
+        ${sopsCmd} -d --extract '["${path}"]' --output-type json ${secretsFile} > $out
+      '');
+      pathParts = lib.splitString "/" path;
+      content = builtins.fromJSON decryptedJSON;
+    in content;
 in
 
 let
@@ -137,6 +150,26 @@ in
         description = "Ceph admin user key";
       };
     };
+
+    sops = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable SOPS-based secret management for Ceph";
+      };
+
+      secretsFile = mkOption {
+        type = types.path;
+        default = ./../../secrets/vkm.sops.yaml;
+        description = "Path to SOPS secrets file";
+      };
+
+      secretsPath = mkOption {
+        type = types.str;
+        default = "ceph";
+        description = "Path within SOPS secrets file to Ceph secrets";
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -149,10 +182,16 @@ in
         configMaps.ceph-csi-config = {
           data = {
             "config.json" = builtins.toJSON [
-              {
+              (if cfg.sops.enable then 
+                let sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
+                in {
+                  clusterID = sopsData.clusterID;
+                  monitors = sopsData.monitors;
+                }
+              else {
                 clusterID = cfg.cluster.clusterID;
                 monitors = cfg.cluster.monitors;
-              }
+              })
             ];
           };
         };
@@ -166,18 +205,25 @@ in
 
         # RBD Secret
         secrets.csi-rbd-secret = lib.mkIf cfg.rbd.enable {
-          stringData = {
-            userID = cfg.secrets.userID;
-            userKey = cfg.secrets.userKey;
-          };
+          stringData = 
+            if cfg.sops.enable then 
+              decryptSOPS cfg.sops.secretsFile "ceph"
+            else {
+              userID = cfg.secrets.userID;
+              userKey = cfg.secrets.userKey;
+            };
         };
 
-        # CephFS Secret
+        # CephFS Secret  
         secrets.csi-cephfs-secret = lib.mkIf cfg.cephfs.enable {
-          stringData = {
-            adminID = cfg.secrets.adminID;
-            adminKey = cfg.secrets.adminKey;
-          };
+          stringData = 
+            if cfg.sops.enable then {
+              adminID = (decryptSOPS cfg.sops.secretsFile "ceph").adminID;
+              adminKey = (decryptSOPS cfg.sops.secretsFile "ceph").adminKey;
+            } else {
+              adminID = cfg.secrets.adminID;
+              adminKey = cfg.secrets.adminKey;
+            };
         };
 
         # RBD Provisioner RBAC
