@@ -1,4 +1,9 @@
-{ lib, config, charts, ... }:
+{
+  lib,
+  config,
+  charts,
+  ...
+}:
 
 let
   cfg = config.applications.nextcloud;
@@ -18,15 +23,15 @@ let
       host = "nextcloud.local";
       username = "admin";
       password = "changeme123";
-      
+
       # Mail configuration
       mail = {
         enabled = false;
       };
-      
+
       # Configure data directory
       datadir = "/var/www/html/data";
-      
+
       # Configure trusted domains
       configs = {
         custom.php = ''
@@ -74,7 +79,7 @@ let
       tls = [
         {
           secretName = "nextcloud-tls";
-          hosts = ["nextcloud.local"];
+          hosts = [ "nextcloud.local" ];
         }
       ];
       hosts = [
@@ -151,7 +156,8 @@ let
       failureThreshold = 3;
       successThreshold = 1;
     };
-  } // cfg.values;
+  }
+  // cfg.values;
 in
 {
   options.applications.nextcloud = with lib; {
@@ -163,7 +169,7 @@ in
 
     values = mkOption {
       type = types.attrsOf types.anything;
-      default = {};
+      default = { };
       description = "Extra Helm values for Nextcloud";
     };
   };

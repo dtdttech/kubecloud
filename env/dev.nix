@@ -13,25 +13,25 @@
       for the development deployment.
     '';
   };
-  
+
   networking.domain = "dev.local";
 
   # Storage configuration for development environment
   storage = {
-    defaultProvider = "local";  # Use local storage for development
+    defaultProvider = "local"; # Use local storage for development
     providers = {
       local = {
         enable = true;
-        storageClass.isDefault = true;  # Set as default storage class
+        storageClass.isDefault = true; # Set as default storage class
       };
-      ceph.enable = false;     # Disable Ceph in development
+      ceph.enable = false; # Disable Ceph in development
       longhorn.enable = false; # Disable Longhorn in development
     };
   };
 
   # Secrets configuration for development environment
   secrets = {
-    defaultProvider = "internal";  # Use internal secrets for development
+    defaultProvider = "internal"; # Use internal secrets for development
     commonLabels = {
       "environment" = "development";
       "managed-by" = "kubecloud";
@@ -39,10 +39,10 @@
     providers = {
       internal = {
         enable = true;
-        validation.enable = true;  # Enable validation for development
-        monitoring.enable = true;  # Enable monitoring for development
+        validation.enable = true; # Enable validation for development
+        monitoring.enable = true; # Enable monitoring for development
       };
-      external.enable = false;  # Disable external secrets in development
+      external.enable = false; # Disable external secrets in development
     };
   };
 
@@ -57,19 +57,19 @@
       password = "dev123";
     };
     storage = {
-      provider = "local";      # Use local storage
-      database.size = "5Gi";   # Smaller database for development
-      config.size = "1Gi";     # Smaller config storage for development
+      provider = "local"; # Use local storage
+      database.size = "5Gi"; # Smaller database for development
+      config.size = "1Gi"; # Smaller config storage for development
     };
   };
 
   identity.keycloak = {
     enable = true;
     domain = "keycloak.dev.local";
-    mode = "development";      # Development mode for Keycloak
+    mode = "development"; # Development mode for Keycloak
     admin = {
       username = "admin";
-      password = "admin";      # Simple password for development
+      password = "admin"; # Simple password for development
     };
     database = {
       name = "keycloak_dev";
@@ -88,13 +88,13 @@
   security.cert-manager = {
     enable = true;
     namespace = "cert-manager";
-    
+
     # Simple self-signed issuer for development
     clusterIssuers = {
       selfsigned-dev = {
         type = "selfSigned";
       };
-      
+
       # Let's Encrypt staging for development testing
       letsencrypt-staging = {
         type = "acme";
@@ -113,9 +113,9 @@
         };
       };
     };
-    
+
     defaultIssuer = "selfsigned-dev";
-    
+
     monitoring = {
       enabled = true;
       alerts = {
@@ -132,7 +132,7 @@
       enable = true;
       namespace = "nginx";
       createNamespace = true;
-      
+
       sites = {
         default = {
           port = 80;
@@ -140,7 +140,7 @@
           root = "/usr/share/nginx/html";
           index = "index.html";
           defaultServer = true;
-          
+
           locations = [
             {
               path = "/";
@@ -154,7 +154,7 @@
           ];
         };
       };
-      
+
       staticFiles = {
         "index.html" = ''
           <!DOCTYPE html>
@@ -178,15 +178,15 @@
           </html>
         '';
       };
-      
+
       ingress = {
         enable = true;
         host = "static.dev.local";
         tls = false; # No TLS for development
       };
-      
+
       monitoring.enabled = true;
-      
+
       resources = {
         requests = {
           cpu = "5m";
@@ -203,7 +203,7 @@
     proxy-demo = {
       enable = true;
       namespace = "nginx";
-      
+
       upstreams = {
         bookstack-backend = {
           servers = [ "bookstack.bookstack.svc.cluster.local:80" ];
@@ -211,12 +211,12 @@
           keepalive = 32;
         };
       };
-      
+
       sites = {
         proxy = {
           port = 80;
           serverName = "proxy.dev.local";
-          
+
           locations = [
             {
               path = "/";
@@ -228,18 +228,18 @@
               extraConfig = "add_header Content-Type text/plain;";
             }
           ];
-          
+
           extraConfig = ''
             # Custom headers for proxy
             add_header X-Proxy-By nginx;
           '';
         };
       };
-      
+
       globalConfig = {
         client_max_body_size = "10m";
       };
-      
+
       ingress = {
         enable = true;
         host = "proxy.dev.local";

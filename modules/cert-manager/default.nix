@@ -1,4 +1,11 @@
-{ lib, config, charts, secretsLib, secretsConfig, ... }:
+{
+  lib,
+  config,
+  charts,
+  secretsLib,
+  secretsConfig,
+  ...
+}:
 
 let
   cfg = config.security.cert-manager;
@@ -6,7 +13,7 @@ let
   values = lib.attrsets.recursiveUpdate {
     # Install CRDs
     installCRDs = true;
-    
+
     # Global settings
     global = {
       leaderElection = {
@@ -135,38 +142,44 @@ let
       kind = "ClusterIssuer";
       metadata = {
         name = name;
-        labels = (secretsConfig.commonLabels or {}) // {
+        labels = (secretsConfig.commonLabels or { }) // {
           "app.kubernetes.io/component" = "cluster-issuer";
         };
-        annotations = secretsConfig.commonAnnotations or {};
+        annotations = secretsConfig.commonAnnotations or { };
       };
-      spec = 
-        if issuer.type == "acme" then {
-          acme = {
-            server = issuer.acme.server;
-            email = issuer.acme.email;
-            privateKeySecretRef = {
-              name = "${name}-private-key";
+      spec =
+        if issuer.type == "acme" then
+          {
+            acme = {
+              server = issuer.acme.server;
+              email = issuer.acme.email;
+              privateKeySecretRef = {
+                name = "${name}-private-key";
+              };
+              solvers = issuer.acme.solvers;
             };
-            solvers = issuer.acme.solvers;
-          };
-        }
-        else if issuer.type == "ca" then {
-          ca = {
-            secretName = issuer.ca.secretName;
-          };
-        }
-        else if issuer.type == "selfSigned" then {
-          selfSigned = {};
-        }
-        else if issuer.type == "vault" then {
-          vault = issuer.vault;
-        }
-        else throw "Unsupported issuer type: ${issuer.type}";
+          }
+        else if issuer.type == "ca" then
+          {
+            ca = {
+              secretName = issuer.ca.secretName;
+            };
+          }
+        else if issuer.type == "selfSigned" then
+          {
+            selfSigned = { };
+          }
+        else if issuer.type == "vault" then
+          {
+            vault = issuer.vault;
+          }
+        else
+          throw "Unsupported issuer type: ${issuer.type}";
     };
   }) cfg.clusterIssuers;
 
-in {
+in
+{
   options.security.cert-manager = with lib; {
     enable = mkOption {
       type = types.bool;
@@ -182,64 +195,75 @@ in {
 
     values = mkOption {
       type = types.attrsOf types.anything;
-      default = {};
+      default = { };
       description = "Helm values for cert-manager";
     };
 
     clusterIssuers = mkOption {
-      type = types.attrsOf (types.submodule {
-        options = {
-          type = mkOption {
-            type = types.enum [ "acme" "ca" "selfSigned" "vault" ];
-            description = "Type of certificate issuer";
+      type = types.attrsOf (
+        types.submodule {
+          options = {
+            type = mkOption {
+              type = types.enum [
+                "acme"
+                "ca"
+                "selfSigned"
+                "vault"
+              ];
+              description = "Type of certificate issuer";
+            };
+
+            acme = mkOption {
+              type = types.nullOr (
+                types.submodule {
+                  options = {
+                    server = mkOption {
+                      type = types.str;
+                      default = "https://acme-v02.api.letsencrypt.org/directory";
+                      description = "ACME server URL";
+                    };
+
+                    email = mkOption {
+                      type = types.str;
+                      description = "Email address for ACME registration";
+                    };
+
+                    solvers = mkOption {
+                      type = types.listOf types.anything;
+                      default = [ ];
+                      description = "ACME challenge solvers";
+                    };
+                  };
+                }
+              );
+              default = null;
+              description = "ACME issuer configuration";
+            };
+
+            ca = mkOption {
+              type = types.nullOr (
+                types.submodule {
+                  options = {
+                    secretName = mkOption {
+                      type = types.str;
+                      description = "Name of the secret containing CA certificate and key";
+                    };
+                  };
+                }
+              );
+              default = null;
+              description = "CA issuer configuration";
+            };
+
+            vault = mkOption {
+              type = types.nullOr types.anything;
+              default = null;
+              description = "Vault issuer configuration";
+            };
           };
-
-          acme = mkOption {
-            type = types.nullOr (types.submodule {
-              options = {
-                server = mkOption {
-                  type = types.str;
-                  default = "https://acme-v02.api.letsencrypt.org/directory";
-                  description = "ACME server URL";
-                };
-
-                email = mkOption {
-                  type = types.str;
-                  description = "Email address for ACME registration";
-                };
-
-                solvers = mkOption {
-                  type = types.listOf types.anything;
-                  default = [];
-                  description = "ACME challenge solvers";
-                };
-              };
-            });
-            default = null;
-            description = "ACME issuer configuration";
-          };
-
-          ca = mkOption {
-            type = types.nullOr (types.submodule {
-              options = {
-                secretName = mkOption {
-                  type = types.str;
-                  description = "Name of the secret containing CA certificate and key";
-                };
-              };
-            });
-            default = null;
-            description = "CA issuer configuration";
-          };
-
-          vault = mkOption {
-            type = types.nullOr types.anything;
-            default = null;
-            description = "Vault issuer configuration";
-          };
-        };
-      });
-      default = {};
+        }
+      );
+      default = { };
       description = "ClusterIssuer configurations";
       example = {
         letsencrypt-prod = {
@@ -325,26 +349,34 @@ in {
 
     dns = {
       providers = mkOption {
-        type = types.attrsOf (types.submodule {
-          options = {
-            type = mkOption {
-              type = types.enum [ "cloudflare" "route53" "cloudDNS" "azureDNS" "digitalocean" ];
-              description = "DNS provider type";
-            };
+        type = types.attrsOf (
+          types.submodule {
+            options = {
+              type = mkOption {
+                type = types.enum [
+                  "cloudflare"
+                  "route53"
+                  "cloudDNS"
+                  "azureDNS"
+                  "digitalocean"
+                ];
+                description = "DNS provider type";
+              };
 
-            secretName = mkOption {
-              type = types.str;
-              description = "Name of secret containing DNS provider credentials";
-            };
+              secretName = mkOption {
+                type = types.str;
+                description = "Name of secret containing DNS provider credentials";
+              };
 
-            config = mkOption {
-              type = types.attrsOf types.anything;
-              default = {};
-              description = "Provider-specific configuration";
+              config = mkOption {
+                type = types.attrsOf types.anything;
+                default = { };
+                description = "Provider-specific configuration";
+              };
             };
-          };
-        });
-        default = {};
+          }
+        );
+        default = { };
         description = "DNS provider configurations for DNS-01 challenges";
       };
     };
@@ -352,7 +384,7 @@ in {
 
   config = lib.mkIf cfg.enable {
     nixidy.applicationImports = [ ];
-    
+
     applications.cert-manager = {
       inherit namespace;
       createNamespace = true;
@@ -377,7 +409,10 @@ in {
                   "app.kubernetes.io/component" = "controller";
                 };
               };
-              policyTypes = [ "Ingress" "Egress" ];
+              policyTypes = [
+                "Ingress"
+                "Egress"
+              ];
               ingress = [
                 {
                   from = [
@@ -424,7 +459,7 @@ in {
                 }
                 # Allow HTTPS to ACME servers
                 {
-                  to = [];
+                  to = [ ];
                   ports = [
                     {
                       protocol = "TCP";
@@ -434,7 +469,7 @@ in {
                 }
                 # Allow access to Kubernetes API
                 {
-                  to = [];
+                  to = [ ];
                   ports = [
                     {
                       protocol = "TCP";
@@ -458,12 +493,15 @@ in {
                   "app.kubernetes.io/component" = "webhook";
                 };
               };
-              policyTypes = [ "Ingress" "Egress" ];
+              policyTypes = [
+                "Ingress"
+                "Egress"
+              ];
               ingress = [
                 {
                   from = [
                     {
-                      namespaceSelector = {};
+                      namespaceSelector = { };
                     }
                   ];
                   ports = [
@@ -500,7 +538,7 @@ in {
                 }
                 # Allow access to Kubernetes API
                 {
-                  to = [];
+                  to = [ ];
                   ports = [
                     {
                       protocol = "TCP";
@@ -521,37 +559,43 @@ in {
     # Add default issuer annotation to ingresses if configured
     # This would typically be done by users in their ingress configurations
     # but we can provide a convenience option
-    
+
     # Monitoring configuration
     monitoring.prometheus.rules = lib.mkIf cfg.monitoring.enabled [
       {
         name = "cert-manager";
         rules = [
-          ({
-            alert = "CertManagerCertificateExpiringSoon";
-            expr = ''
-              certmanager_certificate_expiration_timestamp_seconds - time() < 7 * 24 * 3600
-            '';
-            for = "1h";
-            labels.severity = "warning";
-            annotations = {
-              summary = "Certificate {{ $labels.name }} expiring soon";
-              description = "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} will expire in less than 7 days";
-            };
-          } // lib.optionalAttrs cfg.monitoring.alerts.certificateExpiry {})
+          (
+            {
+              alert = "CertManagerCertificateExpiringSoon";
+              expr = ''
+                certmanager_certificate_expiration_timestamp_seconds - time() < 7 * 24 * 3600
+              '';
+              for = "1h";
+              labels.severity = "warning";
+              annotations = {
+                summary = "Certificate {{ $labels.name }} expiring soon";
+                description = "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} will expire in less than 7 days";
+              };
+            }
+            // lib.optionalAttrs cfg.monitoring.alerts.certificateExpiry { }
+          )
 
-          ({
-            alert = "CertManagerCertificateNotReady";
-            expr = ''
-              certmanager_certificate_ready_status == 0
-            '';
-            for = "10m";
-            labels.severity = "critical";
-            annotations = {
-              summary = "Certificate {{ $labels.name }} not ready";
-              description = "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} has not been ready for 10 minutes";
-            };
-          } // lib.optionalAttrs cfg.monitoring.alerts.certificateRenewalFailure {})
+          (
+            {
+              alert = "CertManagerCertificateNotReady";
+              expr = ''
+                certmanager_certificate_ready_status == 0
+              '';
+              for = "10m";
+              labels.severity = "critical";
+              annotations = {
+                summary = "Certificate {{ $labels.name }} not ready";
+                description = "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} has not been ready for 10 minutes";
+              };
+            }
+            // lib.optionalAttrs cfg.monitoring.alerts.certificateRenewalFailure { }
+          )
 
           {
             alert = "CertManagerACMEAccountRegistrationFailed";

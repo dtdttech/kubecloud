@@ -1,10 +1,16 @@
 # main module
-{ lib, config, charts, ... }:
+{
+  lib,
+  config,
+  charts,
+  ...
+}:
 let
   cfg = config.secrets.external-secrets;
   namespace = "kube-system";
   values = cfg.values;
-in {
+in
+{
   options.secrets.external-secrets = with lib; {
     enable = mkOption {
       type = types.bool;
@@ -12,21 +18,21 @@ in {
     };
     values = mkOption {
       type = types.attrsOf types.anything;
-      default = {};
+      default = { };
     };
   };
 
   config = lib.mkIf cfg.enable {
     nixidy.applicationImports = [ ./generated.nix ];
-    
+
     applications.external-secrets = {
       inherit namespace;
-      
+
       helm.releases.external-secrets = {
         inherit values;
         chart = charts.external-secrets.external-secrets;
       };
-      
+
       # Now use the alias name that matches generated.nix
       # resources.externalSecrets.passboltDemo = {
       #   apiVersion = "external-secrets.io/v1";

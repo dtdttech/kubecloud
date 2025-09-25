@@ -1,17 +1,24 @@
-{ lib, options, config, ... }:
-with lib; {
+{
+  lib,
+  options,
+  config,
+  ...
+}:
+with lib;
+{
   options = {
     resources = {
       "external-secrets.io"."v1"."ExternalSecret" = mkOption {
         description = "ExternalSecret is a type which declares how to fetch the secret data and how to transform it to a Kubernetes Secret.";
         type = types.attrsOf types.attrs; # You might want to use a proper submodule here
-        default = {};
+        default = { };
       };
-    } // {
+    }
+    // {
       "externalSecrets" = mkOption {
         description = "ExternalSecret is a type which declares how to fetch the secret data and how to transform it to a Kubernetes Secret.";
         type = types.attrsOf types.attrs; # You might want to use a proper submodule here
-        default = {};
+        default = { };
       };
     };
   };
@@ -28,8 +35,9 @@ with lib; {
     ];
 
     resources = {
-      "external-secrets.io"."v1"."ExternalSecret" = 
-        mkAliasDefinitions options.resources."externalSecrets";
+      "external-secrets.io"."v1"."ExternalSecret" =
+        mkAliasDefinitions
+          options.resources."externalSecrets";
     };
 
     defaults = [

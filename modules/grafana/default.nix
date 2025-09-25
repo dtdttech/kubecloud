@@ -1,4 +1,9 @@
-{ lib, config, charts, ... }:
+{
+  lib,
+  config,
+  charts,
+  ...
+}:
 
 let
   cfg = config.monitoring.grafana;
@@ -14,7 +19,7 @@ let
 
     # Configure admin credentials
     adminUser = "admin";
-    
+
     # Datasources configuration
     datasources = {
       "datasources.yaml" = {
@@ -47,7 +52,8 @@ let
         memory = "128Mi";
       };
     };
-  } // cfg.values;
+  }
+  // cfg.values;
 in
 {
   options.monitoring.grafana = with lib; {
@@ -59,14 +65,14 @@ in
 
     values = mkOption {
       type = types.attrsOf types.anything;
-      default = {};
+      default = { };
       description = "Extra Helm values for Grafana";
     };
   };
 
   config = lib.mkIf cfg.enable {
-    nixidy.applicationImports = [./generated.nix];
-    
+    nixidy.applicationImports = [ ./generated.nix ];
+
     applications.grafana = {
       inherit namespace;
       createNamespace = true;

@@ -1,11 +1,12 @@
-{lib, charts, ...}@args: {
+{ lib, charts, ... }@args:
+{
   imports = [
     # ./argocd
     # ./cilium
     ./storage
     ./secrets
     ./traefik
-    ./external-secrets  # Keep for backward compatibility, but new external secrets config in ./secrets/external
+    ./external-secrets # Keep for backward compatibility, but new external secrets config in ./secrets/external
     ./prometheus
     ./grafana
     # ./nextcloud
@@ -42,11 +43,13 @@
           };
         };
 
-        helm.transformer = map (lib.kube.removeLabels [
-          "app.kubernetes.io/managed-by"
-          "app.kubernetes.io/version"
-          "helm.sh/chart"
-        ]);
+        helm.transformer = map (
+          lib.kube.removeLabels [
+            "app.kubernetes.io/managed-by"
+            "app.kubernetes.io/version"
+            "helm.sh/chart"
+          ]
+        );
       };
     };
   };

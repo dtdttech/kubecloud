@@ -1,19 +1,31 @@
-{ lib, config, pkgs, charts, ... }:
+{
+  lib,
+  config,
+  pkgs,
+  charts,
+  ...
+}:
 
 let
 
   # Simple SOPS integration - decrypt secrets at build time
-  decryptSOPS = secretsFile: path:
+  decryptSOPS =
+    secretsFile: path:
     let
       sopsCmd = "${pkgs.sops}/bin/sops";
-      decryptedJSON = builtins.readFile (pkgs.runCommand "decrypt-sops-${builtins.baseNameOf secretsFile}" {
-        buildInputs = [ pkgs.sops ];
-      } ''
-        ${sopsCmd} -d --extract '["${path}"]' --output-type json ${secretsFile} > $out
-      '');
+      decryptedJSON = builtins.readFile (
+        pkgs.runCommand "decrypt-sops-${builtins.baseNameOf secretsFile}"
+          {
+            buildInputs = [ pkgs.sops ];
+          }
+          ''
+            ${sopsCmd} -d --extract '["${path}"]' --output-type json ${secretsFile} > $out
+          ''
+      );
       pathParts = lib.splitString "/" path;
       content = builtins.fromJSON decryptedJSON;
-    in content;
+    in
+    content;
 
   cfg = config.storage.providers.ceph;
 
@@ -171,39 +183,51 @@ in
         # RBD CSI Driver
         ceph-csi-rbd = lib.mkIf cfg.rbd.enable {
           chart = "${../../../charts/ceph-csi-rbd}";
-          
+
           values = {
             # Basic configuration
             fullnameOverride = "ceph-csi-rbd";
-            
+
             # Ceph cluster configuration
-            csiConfig = if cfg.sops.enable then 
-              let sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
-              in [{
-                clusterID = sopsData.clusterID;
-                monitors = sopsData.monitors;
-              }]
-            else [{
-              clusterID = cfg.cluster.clusterID;
-              monitors = cfg.cluster.monitors;
-            }];
-            
+            csiConfig =
+              if cfg.sops.enable then
+                let
+                  sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
+                in
+                [
+                  {
+                    clusterID = sopsData.clusterID;
+                    monitors = sopsData.monitors;
+                  }
+                ]
+              else
+                [
+                  {
+                    clusterID = cfg.cluster.clusterID;
+                    monitors = cfg.cluster.monitors;
+                  }
+                ];
+
             # Secret management
-            secret = if cfg.sops.enable then 
-              let sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
-              in {
-                userID = sopsData.userID;
-                userKey = sopsData.userKey;
-                adminID = sopsData.adminID;
-                adminKey = sopsData.adminKey;
-              }
-            else {
-              userID = cfg.secrets.userID;
-              userKey = cfg.secrets.userKey;
-              adminID = cfg.secrets.adminID;
-              adminKey = cfg.secrets.adminKey;
-            };
-            
+            secret =
+              if cfg.sops.enable then
+                let
+                  sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
+                in
+                {
+                  userID = sopsData.userID;
+                  userKey = sopsData.userKey;
+                  adminID = sopsData.adminID;
+                  adminKey = sopsData.adminKey;
+                }
+              else
+                {
+                  userID = cfg.secrets.userID;
+                  userKey = cfg.secrets.userKey;
+                  adminID = cfg.secrets.adminID;
+                  adminKey = cfg.secrets.adminKey;
+                };
+
             # Driver configuration
             provisioner = {
               replicaCount = 3;
@@ -213,7 +237,7 @@ in
               replicaCount = 3;
               image = "quay.io/cephcsi/cephcsi:${cfg.version}";
             };
-            
+
             # StorageClass
             storageClass = {
               create = true;
@@ -226,46 +250,58 @@ in
                 "imageFeatures" = "layering";
               };
             };
-            
+
             # RBAC
             rbac.create = true;
             serviceAccounts.nodeplugin.create = true;
             serviceAccounts.provisioner.create = true;
           };
         };
-        
+
         # CephFS CSI Driver
         ceph-csi-cephfs = lib.mkIf cfg.cephfs.enable {
           chart = "${../../../charts/ceph-csi-cephfs}";
-          
+
           values = {
             # Basic configuration
             fullnameOverride = "ceph-csi-cephfs";
-            
+
             # Ceph cluster configuration
-            csiConfig = if cfg.sops.enable then 
-              let sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
-              in [{
-                clusterID = sopsData.clusterID;
-                monitors = sopsData.monitors;
-              }]
-            else [{
-              clusterID = cfg.cluster.clusterID;
-              monitors = cfg.cluster.monitors;
-            }];
-            
+            csiConfig =
+              if cfg.sops.enable then
+                let
+                  sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
+                in
+                [
+                  {
+                    clusterID = sopsData.clusterID;
+                    monitors = sopsData.monitors;
+                  }
+                ]
+              else
+                [
+                  {
+                    clusterID = cfg.cluster.clusterID;
+                    monitors = cfg.cluster.monitors;
+                  }
+                ];
+
             # Secret management
-            secret = if cfg.sops.enable then 
-              let sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
-              in {
-                adminID = sopsData.adminID;
-                adminKey = sopsData.adminKey;
-              }
-            else {
-              adminID = cfg.secrets.adminID;
-              adminKey = cfg.secrets.adminKey;
-            };
-            
+            secret =
+              if cfg.sops.enable then
+                let
+                  sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
+                in
+                {
+                  adminID = sopsData.adminID;
+                  adminKey = sopsData.adminKey;
+                }
+              else
+                {
+                  adminID = cfg.secrets.adminID;
+                  adminKey = cfg.secrets.adminKey;
+                };
+
             # Driver configuration
             provisioner = {
               replicaCount = 3;
@@ -275,7 +311,7 @@ in
               replicaCount = 3;
               image = "quay.io/cephcsi/cephcsi:${cfg.version}";
             };
-            
+
             # StorageClass
             storageClass = {
               create = true;
@@ -285,7 +321,7 @@ in
               reclaimPolicy = cfg.cephfs.storageClass.reclaimPolicy;
               allowVolumeExpansion = cfg.cephfs.storageClass.allowVolumeExpansion;
             };
-            
+
             # RBAC
             rbac.create = true;
             serviceAccounts.nodeplugin.create = true;

@@ -12,7 +12,10 @@ in
   options.secrets = with lib; {
     # Default secrets provider for the environment
     defaultProvider = mkOption {
-      type = types.enum [ "internal" "external" ];
+      type = types.enum [
+        "internal"
+        "external"
+      ];
       default = "internal";
       description = ''
         Default secrets provider to use when not explicitly specified.
@@ -55,7 +58,7 @@ in
     # Global secret labels and annotations
     commonLabels = mkOption {
       type = types.attrsOf types.str;
-      default = {};
+      default = { };
       description = "Common labels to apply to all secrets";
     };
 
@@ -98,13 +101,13 @@ in
 
       allowedNamespaces = mkOption {
         type = types.listOf types.str;
-        default = [];
+        default = [ ];
         description = "List of namespaces allowed to use external secrets (empty = all)";
       };
 
       restrictedSecretTypes = mkOption {
         type = types.listOf types.str;
-        default = [];
+        default = [ ];
         description = "List of secret types that require special permissions";
       };
     };
@@ -113,7 +116,7 @@ in
   config = {
     # Make secrets utilities available to all modules
     _module.args.secretsLib = secretsLib;
-    
+
     # Expose secrets configuration to all modules
     _module.args.secretsConfig = {
       defaultProvider = config.secrets.defaultProvider;
@@ -126,22 +129,36 @@ in
     };
 
     # Set up RBAC for secret access
-    applications.secrets-rbac = lib.mkIf (config.secrets.security.allowedNamespaces != []) {
+    applications.secrets-rbac = lib.mkIf (config.secrets.security.allowedNamespaces != [ ]) {
       namespace = "kube-system";
-      
+
       resources = {
         # Create namespace-specific RBAC for external secrets
         clusterRoles.external-secrets-reader = {
           rules = [
             {
-              apiGroups = [""];
-              resources = ["secrets"];
-              verbs = ["get" "list" "watch"];
+              apiGroups = [ "" ];
+              resources = [ "secrets" ];
+              verbs = [
+                "get"
+                "list"
+                "watch"
+              ];
             }
             {
-              apiGroups = ["external-secrets.io"];
-              resources = ["externalsecrets" "secretstores"];
-              verbs = ["get" "list" "watch" "create" "update" "patch"];
+              apiGroups = [ "external-secrets.io" ];
+              resources = [
+                "externalsecrets"
+                "secretstores"
+              ];
+              verbs = [
+                "get"
+                "list"
+                "watch"
+                "create"
+                "update"
+                "patch"
+              ];
             }
           ];
         };

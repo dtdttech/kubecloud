@@ -3,90 +3,90 @@
   config,
   charts,
   ...
-}: let
+}:
+let
   cfg = config.networking.traefik;
 
   namespace = "traefik";
-  values =
-    lib.attrsets.recursiveUpdate {
-      # Create an ingress class.
-      ingressClass = {
-        enabled = true;
-        isDefaultClass = true;
-        name = cfg.ingressClassName;
+  values = lib.attrsets.recursiveUpdate {
+    # Create an ingress class.
+    ingressClass = {
+      enabled = true;
+      isDefaultClass = true;
+      name = cfg.ingressClassName;
+    };
+
+    # Don't send update checks and anonymous data collection.
+    global = {
+      checkNewVersion = false;
+      sendAnonymousUsage = false;
+    };
+
+    # Automatically set host to published services.
+    providers.kubernetesIngress.publishedService.enabled = true;
+
+    # Automatically redirect HTTP to HTTPS
+    ports.web.redirections.entryPoint = {
+      to = "websecure";
+      scheme = "https";
+      permanent = true;
+    };
+
+    # Use lets encrypt as a cert resolver.
+    ports.websecure.tls = {
+      enabled = true;
+      certResolver = "letsencrypt";
+    };
+
+    # Setup cert resolver for lets encrypt.
+    certificatesResolvers.letsencrypt.acme = {
+      email = "acme@codedbearder.com";
+      httpChallenge = {
+        entryPoint = "web";
       };
+      storage = "/data/acme.json";
+    };
 
-      # Don't send update checks and anonymous data collection.
-      global = {
-        checkNewVersion = false;
-        sendAnonymousUsage = false;
-      };
+    # Setup storage for acme data.
+    # persistence = {
+    #   enabled = true;
+    #   # storageClass = config.storage.csi.nfs.storageClassName;
+    #   subPath = "traefik";
+    # };
 
-      # Automatically set host to published services.
-      providers.kubernetesIngress.publishedService.enabled = true;
+    # Setup fs group for file system permissions.
+    podSecurityContext.fsGroup = 2000;
+    podSecurityContext.fsGroupChangePolicy = "OnRootMismatch";
 
-      # Automatically redirect HTTP to HTTPS
-      ports.web.redirections.entryPoint = {
-        to = "websecure";
-        scheme = "https";
-        permanent = true;
-      };
+    # Only want to keep 3 revisions around
+    deployment.revisionHistoryLimit = 3;
 
-      # Use lets encrypt as a cert resolver.
-      ports.websecure.tls = {
-        enabled = true;
-        certResolver = "letsencrypt";
-      };
+    # Kubernetes changes permissions of `/data/acme.json`
+    # during pod creation to `0660` but traefik needs it
+    # to be `0600`.
+    deployment.initContainers = [
+      {
+        name = "volume-permissions";
+        image = "busybox:1.36";
+        command = [
+          "sh"
+          "-c"
+          "touch /data/acme.json; chmod -v 600 /data/acme.json"
+        ];
+        volumeMounts = [
+          {
+            mountPath = "/data";
+            name = "data";
+            subPath = "traefik";
+          }
+        ];
+      }
+    ];
 
-      # Setup cert resolver for lets encrypt.
-      certificatesResolvers.letsencrypt.acme = {
-        email = "acme@codedbearder.com";
-        httpChallenge = {
-          entryPoint = "web";
-        };
-        storage = "/data/acme.json";
-      };
-
-      # Setup storage for acme data.
-      # persistence = {
-      #   enabled = true;
-      #   # storageClass = config.storage.csi.nfs.storageClassName;
-      #   subPath = "traefik";
-      # };
-
-      # Setup fs group for file system permissions.
-      podSecurityContext.fsGroup = 2000;
-      podSecurityContext.fsGroupChangePolicy = "OnRootMismatch";
-
-      # Only want to keep 3 revisions around
-      deployment.revisionHistoryLimit = 3;
-
-      # Kubernetes changes permissions of `/data/acme.json`
-      # during pod creation to `0660` but traefik needs it
-      # to be `0600`.
-      deployment.initContainers = [
-        {
-          name = "volume-permissions";
-          image = "busybox:1.36";
-          command = [
-            "sh"
-            "-c"
-            "touch /data/acme.json; chmod -v 600 /data/acme.json"
-          ];
-          volumeMounts = [
-            {
-              mountPath = "/data";
-              name = "data";
-              subPath = "traefik";
-            }
-          ];
-        }
-      ];
-
-      # No environment secrets needed for HTTP challenge
-    }
-    cfg.values;
-in {
+    # No environment secrets needed for HTTP challenge
+  } cfg.values;
+in
+{
   options.networking.traefik = with lib; {
     enable = mkOption {
       type = types.bool;
@@ -99,7 +99,7 @@ in {
     };
     values = mkOption {
       type = types.attrsOf types.anything;
-      default = {};
+      default = { };
     };
   };
 
@@ -121,7 +121,7 @@ in {
         # make DNS requests to traefik.
         networkPolicies.allow-tailscale-ingress.spec = {
           podSelector.matchLabels."app.kubernetes.io/name" = "traefik";
-          policyTypes = ["Ingress"];
+          policyTypes = [ "Ingress" ];
           ingress = [
             {
               from = [

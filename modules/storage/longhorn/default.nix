@@ -37,7 +37,10 @@ in
       };
 
       reclaimPolicy = mkOption {
-        type = types.enum [ "Delete" "Retain" ];
+        type = types.enum [
+          "Delete"
+          "Retain"
+        ];
         default = "Delete";
         description = "Reclaim policy for Longhorn volumes";
       };
@@ -120,81 +123,87 @@ in
               };
               spec = {
                 serviceAccountName = "longhorn-service-account";
-                containers = [{
-                  name = "longhorn-manager";
-                  image = "longhornio/longhorn-manager:${cfg.version}";
-                  imagePullPolicy = "IfNotPresent";
-                  securityContext = {
-                    privileged = true;
-                  };
-                  command = [
-                    "longhorn-manager"
-                    "-d"
-                    "daemon"
-                    "--engine-image"
-                    "longhornio/longhorn-engine:${cfg.version}"
-                    "--instance-manager-image"
-                    "longhornio/longhorn-instance-manager:${cfg.version}"
-                    "--share-manager-image"
-                    "longhornio/longhorn-share-manager:${cfg.version}"
-                    "--backing-image-manager-image"
-                    "longhornio/backing-image-manager:${cfg.version}"
-                    "--support-bundle-manager-image"
-                    "longhornio/support-bundle-kit:${cfg.version}"
-                    "--manager-image"
-                    "longhornio/longhorn-manager:${cfg.version}"
-                  ];
-                  ports = [{
-                    containerPort = 9500;
-                    name = "manager";
-                  }];
-                  env = [
-                    {
-                      name = "POD_NAMESPACE";
-                      valueFrom.fieldRef.fieldPath = "metadata.namespace";
-                    }
-                    {
-                      name = "POD_IP";
-                      valueFrom.fieldRef.fieldPath = "status.podIP";
-                    }
-                    {
-                      name = "NODE_NAME";
-                      valueFrom.fieldRef.fieldPath = "spec.nodeName";
-                    }
-                  ];
-                  volumeMounts = [
-                    {
-                      name = "dev";
-                      mountPath = "/host/dev/";
-                    }
-                    {
-                      name = "proc";
-                      mountPath = "/host/proc/";
-                    }
-                    {
-                      name = "longhorn";
-                      mountPath = "/var/lib/longhorn/";
-                      mountPropagation = "Bidirectional";
-                    }
-                  ];
-                  resources = {
-                    requests = {
-                      cpu = "250m";
-                      memory = "512Mi";
+                containers = [
+                  {
+                    name = "longhorn-manager";
+                    image = "longhornio/longhorn-manager:${cfg.version}";
+                    imagePullPolicy = "IfNotPresent";
+                    securityContext = {
+                      privileged = true;
                     };
-                    limits = {
-                      cpu = "1000m";
-                      memory = "1Gi";
+                    command = [
+                      "longhorn-manager"
+                      "-d"
+                      "daemon"
+                      "--engine-image"
+                      "longhornio/longhorn-engine:${cfg.version}"
+                      "--instance-manager-image"
+                      "longhornio/longhorn-instance-manager:${cfg.version}"
+                      "--share-manager-image"
+                      "longhornio/longhorn-share-manager:${cfg.version}"
+                      "--backing-image-manager-image"
+                      "longhornio/backing-image-manager:${cfg.version}"
+                      "--support-bundle-manager-image"
+                      "longhornio/support-bundle-kit:${cfg.version}"
+                      "--manager-image"
+                      "longhornio/longhorn-manager:${cfg.version}"
+                    ];
+                    ports = [
+                      {
+                        containerPort = 9500;
+                        name = "manager";
+                      }
+                    ];
+                    env = [
+                      {
+                        name = "POD_NAMESPACE";
+                        valueFrom.fieldRef.fieldPath = "metadata.namespace";
+                      }
+                      {
+                        name = "POD_IP";
+                        valueFrom.fieldRef.fieldPath = "status.podIP";
+                      }
+                      {
+                        name = "NODE_NAME";
+                        valueFrom.fieldRef.fieldPath = "spec.nodeName";
+                      }
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "dev";
+                        mountPath = "/host/dev/";
+                      }
+                      {
+                        name = "proc";
+                        mountPath = "/host/proc/";
+                      }
+                      {
+                        name = "longhorn";
+                        mountPath = "/var/lib/longhorn/";
+                        mountPropagation = "Bidirectional";
+                      }
+                    ];
+                    resources = {
+                      requests = {
+                        cpu = "250m";
+                        memory = "512Mi";
+                      };
+                      limits = {
+                        cpu = "1000m";
+                        memory = "1Gi";
+                      };
                     };
-                  };
-                }];
+                  }
+                ];
                 hostNetwork = true;
                 hostPID = true;
-                tolerations = [{
-                  key = "kubevirt.io/drain";
-                  operator = "Exists";
-                  effect = "NoSchedule";
-                }];
+                tolerations = [
+                  {
+                    key = "kubevirt.io/drain";
+                    operator = "Exists";
+                    effect = "NoSchedule";
+                  }
+                ];
                 volumes = [
                   {
                     name = "dev";
@@ -316,11 +325,13 @@ in
                 ];
                 hostNetwork = true;
                 hostPID = true;
-                tolerations = [{
-                  key = "kubevirt.io/drain";
-                  operator = "Exists";
-                  effect = "NoSchedule";
-                }];
+                tolerations = [
+                  {
+                    key = "kubevirt.io/drain";
+                    operator = "Exists";
+                    effect = "NoSchedule";
+                  }
+                ];
                 volumes = [
                   {
                     name = "socket-dir";
@@ -390,14 +401,18 @@ in
                       "--feature-gates=Topology=true"
                       "--strict-topology"
                     ];
-                    env = [{
-                      name = "ADDRESS";
-                      value = "/var/lib/csi/sockets/pluginproxy/csi.sock";
-                    }];
-                    volumeMounts = [{
-                      name = "socket-dir";
-                      mountPath = "/var/lib/csi/sockets/pluginproxy/";
-                    }];
+                    env = [
+                      {
+                        name = "ADDRESS";
+                        value = "/var/lib/csi/sockets/pluginproxy/csi.sock";
+                      }
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "socket-dir";
+                        mountPath = "/var/lib/csi/sockets/pluginproxy/";
+                      }
+                    ];
                   }
                   {
                     name = "csi-attacher";
@@ -406,14 +421,18 @@ in
                       "--v=2"
                       "--csi-address=$(ADDRESS)"
                     ];
-                    env = [{
-                      name = "ADDRESS";
-                      value = "/var/lib/csi/sockets/pluginproxy/csi.sock";
-                    }];
-                    volumeMounts = [{
-                      name = "socket-dir";
-                      mountPath = "/var/lib/csi/sockets/pluginproxy/";
-                    }];
+                    env = [
+                      {
+                        name = "ADDRESS";
+                        value = "/var/lib/csi/sockets/pluginproxy/csi.sock";
+                      }
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "socket-dir";
+                        mountPath = "/var/lib/csi/sockets/pluginproxy/";
+                      }
+                    ];
                   }
                   {
                     name = "csi-resizer";
@@ -422,14 +441,18 @@ in
                       "--v=2"
                       "--csi-address=$(ADDRESS)"
                     ];
-                    env = [{
-                      name = "ADDRESS";
-                      value = "/var/lib/csi/sockets/pluginproxy/csi.sock";
-                    }];
-                    volumeMounts = [{
-                      name = "socket-dir";
-                      mountPath = "/var/lib/csi/sockets/pluginproxy/";
-                    }];
+                    env = [
+                      {
+                        name = "ADDRESS";
+                        value = "/var/lib/csi/sockets/pluginproxy/csi.sock";
+                      }
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "socket-dir";
+                        mountPath = "/var/lib/csi/sockets/pluginproxy/";
+                      }
+                    ];
                   }
                   {
                     name = "longhorn-csi-plugin";
@@ -449,75 +472,120 @@ in
                         value = "unix:///var/lib/csi/sockets/pluginproxy/csi.sock";
                       }
                     ];
-                    volumeMounts = [{
-                      name = "socket-dir";
-                      mountPath = "/var/lib/csi/sockets/pluginproxy/";
-                    }];
+                    volumeMounts = [
+                      {
+                        name = "socket-dir";
+                        mountPath = "/var/lib/csi/sockets/pluginproxy/";
+                      }
+                    ];
                   }
                 ];
-                volumes = [{
-                  name = "socket-dir";
-                  emptyDir = {};
-                }];
+                volumes = [
+                  {
+                    name = "socket-dir";
+                    emptyDir = { };
+                  }
+                ];
               };
             };
           };
         };
 
         # Service Account and RBAC
-        serviceAccounts.longhorn-service-account = {};
+        serviceAccounts.longhorn-service-account = { };
 
         clusterRoles.longhorn-role = {
           rules = [
             {
-              apiGroups = ["apiextensions.k8s.io"];
-              resources = ["customresourcedefinitions"];
-              verbs = ["*"];
+              apiGroups = [ "apiextensions.k8s.io" ];
+              resources = [ "customresourcedefinitions" ];
+              verbs = [ "*" ];
             }
             {
-              apiGroups = ["longhorn.io"];
-              resources = ["*"];
-              verbs = ["*"];
+              apiGroups = [ "longhorn.io" ];
+              resources = [ "*" ];
+              verbs = [ "*" ];
             }
             {
-              apiGroups = [""];
-              resources = ["pods" "events" "persistentvolumes" "persistentvolumeclaims" "persistentvolumeclaims/status" "nodes" "proxy/nodes" "pods/log" "secrets" "services" "endpoints" "configmaps"];
-              verbs = ["*"];
+              apiGroups = [ "" ];
+              resources = [
+                "pods"
+                "events"
+                "persistentvolumes"
+                "persistentvolumeclaims"
+                "persistentvolumeclaims/status"
+                "nodes"
+                "proxy/nodes"
+                "pods/log"
+                "secrets"
+                "services"
+                "endpoints"
+                "configmaps"
+              ];
+              verbs = [ "*" ];
             }
             {
-              apiGroups = ["apps"];
-              resources = ["daemonsets" "statefulsets" "replicasets" "deployments"];
-              verbs = ["*"];
+              apiGroups = [ "apps" ];
+              resources = [
+                "daemonsets"
+                "statefulsets"
+                "replicasets"
+                "deployments"
+              ];
+              verbs = [ "*" ];
             }
             {
-              apiGroups = ["batch"];
-              resources = ["jobs" "cronjobs"];
-              verbs = ["*"];
+              apiGroups = [ "batch" ];
+              resources = [
+                "jobs"
+                "cronjobs"
+              ];
+              verbs = [ "*" ];
             }
             {
-              apiGroups = ["storage.k8s.io"];
-              resources = ["storageclasses" "volumeattachments" "volumeattachments/status" "csinodes" "csidrivers"];
-              verbs = ["*"];
+              apiGroups = [ "storage.k8s.io" ];
+              resources = [
+                "storageclasses"
+                "volumeattachments"
+                "volumeattachments/status"
+                "csinodes"
+                "csidrivers"
+              ];
+              verbs = [ "*" ];
             }
             {
-              apiGroups = ["snapshot.storage.k8s.io"];
-              resources = ["volumesnapshotclasses" "volumesnapshots" "volumesnapshotcontents" "volumesnapshotcontents/status"];
-              verbs = ["*"];
+              apiGroups = [ "snapshot.storage.k8s.io" ];
+              resources = [
+                "volumesnapshotclasses"
+                "volumesnapshots"
+                "volumesnapshotcontents"
+                "volumesnapshotcontents/status"
+              ];
+              verbs = [ "*" ];
             }
             {
-              apiGroups = ["coordination.k8s.io"];
-              resources = ["leases"];
-              verbs = ["*"];
+              apiGroups = [ "coordination.k8s.io" ];
+              resources = [ "leases" ];
+              verbs = [ "*" ];
             }
             {
-              apiGroups = ["metrics.k8s.io"];
-              resources = ["pods" "nodes"];
-              verbs = ["get" "list"];
+              apiGroups = [ "metrics.k8s.io" ];
+              resources = [
+                "pods"
+                "nodes"
+              ];
+              verbs = [
+                "get"
+                "list"
+              ];
             }
             {
-              apiGroups = [""];
-              resources = ["namespaces"];
-              verbs = ["get" "list"];
+              apiGroups = [ "" ];
+              resources = [ "namespaces" ];
+              verbs = [
+                "get"
+                "list"
+              ];
             }
           ];
         };
@@ -528,11 +596,13 @@ in
             kind = "ClusterRole";
             name = "longhorn-role";
           };
-          subjects = [{
-            kind = "ServiceAccount";
-            name = "longhorn-service-account";
-            namespace = "longhorn-system";
-          }];
+          subjects = [
+            {
+              kind = "ServiceAccount";
+              name = "longhorn-service-account";
+              namespace = "longhorn-system";
+            }
+          ];
         };
 
         # Longhorn Manager Service
@@ -541,11 +611,13 @@ in
             type = "ClusterIP";
             sessionAffinity = "ClientIP";
             selector.app = "longhorn-manager";
-            ports = [{
-              name = "manager";
-              port = 9500;
-              targetPort = "manager";
-            }];
+            ports = [
+              {
+                name = "manager";
+                port = 9500;
+                targetPort = "manager";
+              }
+            ];
           };
         };
 
@@ -578,34 +650,40 @@ in
                 app = "longhorn-ui";
               };
               spec = {
-                containers = [{
-                  name = "longhorn-ui";
-                  image = "longhornio/longhorn-ui:${cfg.version}";
-                  imagePullPolicy = "IfNotPresent";
-                  securityContext = {
-                    runAsUser = 1000;
-                    runAsGroup = 1000;
-                    runAsNonRoot = true;
-                  };
-                  ports = [{
-                    containerPort = 8000;
-                    name = "http";
-                  }];
-                  env = [{
-                    name = "LONGHORN_MANAGER_IP";
-                    value = "http://longhorn-backend:9500";
-                  }];
-                  resources = {
-                    requests = {
-                      cpu = "100m";
-                      memory = "64Mi";
+                containers = [
+                  {
+                    name = "longhorn-ui";
+                    image = "longhornio/longhorn-ui:${cfg.version}";
+                    imagePullPolicy = "IfNotPresent";
+                    securityContext = {
+                      runAsUser = 1000;
+                      runAsGroup = 1000;
+                      runAsNonRoot = true;
                     };
-                    limits = {
-                      cpu = "200m";
-                      memory = "128Mi";
+                    ports = [
+                      {
+                        containerPort = 8000;
+                        name = "http";
+                      }
+                    ];
+                    env = [
+                      {
+                        name = "LONGHORN_MANAGER_IP";
+                        value = "http://longhorn-backend:9500";
+                      }
+                    ];
+                    resources = {
+                      requests = {
+                        cpu = "100m";
+                        memory = "64Mi";
+                      };
+                      limits = {
+                        cpu = "200m";
+                        memory = "128Mi";
+                      };
                     };
-                  };
-                }];
+                  }
+                ];
               };
             };
           };
@@ -615,11 +693,13 @@ in
           spec = {
             type = "ClusterIP";
             selector.app = "longhorn-ui";
-            ports = [{
-              name = "http";
-              port = 80;
-              targetPort = 8000;
-            }];
+            ports = [
+              {
+                name = "http";
+                port = 80;
+                targetPort = 8000;
+              }
+            ];
           };
         };
 
@@ -630,21 +710,27 @@ in
           };
           spec = {
             ingressClassName = "traefik";
-            tls = [{
-              secretName = "longhorn-ui-tls";
-              hosts = [ cfg.ui.domain ];
-            }];
-            rules = [{
-              host = cfg.ui.domain;
-              http.paths = [{
-                path = "/";
-                pathType = "Prefix";
-                backend.service = {
-                  name = "longhorn-frontend";
-                  port.number = 80;
-                };
-              }];
-            }];
+            tls = [
+              {
+                secretName = "longhorn-ui-tls";
+                hosts = [ cfg.ui.domain ];
+              }
+            ];
+            rules = [
+              {
+                host = cfg.ui.domain;
+                http.paths = [
+                  {
+                    path = "/";
+                    pathType = "Prefix";
+                    backend.service = {
+                      name = "longhorn-frontend";
+                      port.number = 80;
+                    };
+                  }
+                ];
+              }
+            ];
           };
         };
       };

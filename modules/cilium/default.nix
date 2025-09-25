@@ -3,51 +3,51 @@
   config,
   charts,
   ...
-}: let
+}:
+let
   cfg = config.networking.cilium;
-  
+
   namespace = "kube-system";
 
-  values =
-    lib.attrsets.recursiveUpdate {
-      operator.replicas = 2;
-      dnsProxy.enableTransparentMode = true;
-      
-      # Cluster configuration  
-      cluster.name = "default";
-      cluster.id = 0;
+  values = lib.attrsets.recursiveUpdate {
+    operator.replicas = 2;
+    dnsProxy.enableTransparentMode = true;
 
-      # Default CIDR in k3s.
-      ipam.operator.clusterPoolIPv4PodCIDRList = ["10.42.0.0/16"];
+    # Cluster configuration
+    cluster.name = "default";
+    cluster.id = 0;
 
-      # Force to be null to workaround issue where it's not qouted
-      ipam.multiPoolPreAllocation = null;
+    # Default CIDR in k3s.
+    ipam.operator.clusterPoolIPv4PodCIDRList = [ "10.42.0.0/16" ];
 
-      # Policy enforcement.
-      policyEnforcementMode = "always";
-      policyAuditMode = false;
+    # Force to be null to workaround issue where it's not qouted
+    ipam.multiPoolPreAllocation = null;
 
-      # Set Cilium as a kube-proxy replacement.
-      kubeProxyReplacement = true;
+    # Policy enforcement.
+    policyEnforcementMode = "always";
+    policyAuditMode = false;
 
-      # Each node in a k3s cluster runs a local
-      # load balancer for the API server on port
-      # 6444.
-      k8sServiceHost = "localhost";
-      k8sServicePort = 6444;
+    # Set Cilium as a kube-proxy replacement.
+    kubeProxyReplacement = true;
 
-      # Needed for the tailscale proxy setup to work.
-      socketLB.hostNamespaceOnly = true;
-      bpf.lbExternalClusterIP = true;
+    # Each node in a k3s cluster runs a local
+    # load balancer for the API server on port
+    # 6444.
+    k8sServiceHost = "localhost";
+    k8sServicePort = 6444;
 
-      hubble = {
-        relay.enabled = true;
-        ui.enabled = true;
-        tls.auto.method = "cronJob";
-      };
-    }
-    cfg.values;
-in {
+    # Needed for the tailscale proxy setup to work.
+    socketLB.hostNamespaceOnly = true;
+    bpf.lbExternalClusterIP = true;
+
+    hubble = {
+      relay.enabled = true;
+      ui.enabled = true;
+      tls.auto.method = "cronJob";
+    };
+  } cfg.values;
+in
+{
   options.networking.cilium = with lib; {
     enable = mkOption {
       type = types.bool;
@@ -55,12 +55,12 @@ in {
     };
     values = mkOption {
       type = types.attrsOf types.anything;
-      default = {};
+      default = { };
     };
   };
 
   config = lib.mkIf cfg.enable {
-    nixidy.applicationImports = [./generated.nix];
+    nixidy.applicationImports = [ ./generated.nix ];
 
     applications.cilium = {
       inherit namespace;
@@ -81,7 +81,10 @@ in {
             endpointSelector.matchLabels."app.kubernetes.io/name" = "hubble-relay";
             egress = [
               {
-                toEntities = ["remote-node" "host"];
+                toEntities = [
+                  "remote-node"
+                  "host"
+                ];
                 toPorts = [
                   {
                     ports = [
@@ -127,7 +130,7 @@ in {
             endpointSelector.matchLabels."app.kubernetes.io/name" = "hubble-ui";
             egress = [
               {
-                toEntities = ["kube-apiserver"];
+                toEntities = [ "kube-apiserver" ];
                 toPorts = [
                   {
                     ports = [
@@ -148,7 +151,7 @@ in {
             endpointSelector.matchLabels.k8s-app = "kube-dns";
             egress = [
               {
-                toEntities = ["world"];
+                toEntities = [ "world" ];
                 toPorts = [
                   {
                     ports = [
@@ -169,7 +172,7 @@ in {
             endpointSelector.matchLabels.k8s-app = "kube-dns";
             egress = [
               {
-                toEntities = ["kube-apiserver"];
+                toEntities = [ "kube-apiserver" ];
                 toPorts = [
                   {
                     ports = [
@@ -190,7 +193,7 @@ in {
             endpointSelector.matchLabels."batch.kubernetes.io/job-name" = "hubble-generate-certs";
             egress = [
               {
-                toEntities = ["kube-apiserver"];
+                toEntities = [ "kube-apiserver" ];
                 toPorts = [
                   {
                     ports = [
@@ -210,10 +213,10 @@ in {
           # Allow all cilium endpoints to talk egress to each other
           allow-internal-egress.spec = {
             description = "Policy to allow all Cilium managed endpoint to talk to all other cilium managed endpoints on egress";
-            endpointSelector = {};
+            endpointSelector = { };
             egress = [
               {
-                toEndpoints = [{}];
+                toEndpoints = [ { } ];
               }
             ];
           };
@@ -223,12 +226,12 @@ in {
             endpointSelector.matchLabels."reserved:health" = "";
             ingress = [
               {
-                fromEntities = ["remote-node"];
+                fromEntities = [ "remote-node" ];
               }
             ];
             egress = [
               {
-                toEntities = ["remote-node"];
+                toEntities = [ "remote-node" ];
               }
             ];
           };
@@ -242,7 +245,7 @@ in {
             };
             ingress = [
               {
-                fromEndpoints = [{}];
+                fromEndpoints = [ { } ];
                 toPorts = [
                   {
                     ports = [

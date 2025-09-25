@@ -1,21 +1,32 @@
-{ lib, config, pkgs, ... }:
+{
+  lib,
+  config,
+  pkgs,
+  ...
+}:
 
 # Import generated CRDs
 let
   cephCsiCrds = import ./generated.nix;
 
   # Simple SOPS integration - decrypt secrets at build time
-  decryptSOPS = secretsFile: path:
+  decryptSOPS =
+    secretsFile: path:
     let
       sopsCmd = "${pkgs.sops}/bin/sops";
-      decryptedJSON = builtins.readFile (pkgs.runCommand "decrypt-sops-${builtins.baseNameOf secretsFile}" {
-        buildInputs = [ pkgs.sops ];
-      } ''
-        ${sopsCmd} -d --extract '["${path}"]' --output-type json ${secretsFile} > $out
-      '');
+      decryptedJSON = builtins.readFile (
+        pkgs.runCommand "decrypt-sops-${builtins.baseNameOf secretsFile}"
+          {
+            buildInputs = [ pkgs.sops ];
+          }
+          ''
+            ${sopsCmd} -d --extract '["${path}"]' --output-type json ${secretsFile} > $out
+          ''
+      );
       pathParts = lib.splitString "/" path;
       content = builtins.fromJSON decryptedJSON;
-    in content;
+    in
+    content;
 
   cfg = config.storage.providers.ceph;
 
@@ -62,7 +73,10 @@ in
         };
 
         reclaimPolicy = mkOption {
-          type = types.enum [ "Delete" "Retain" ];
+          type = types.enum [
+            "Delete"
+            "Retain"
+          ];
           default = "Delete";
           description = "Volume reclaim policy";
         };
@@ -96,7 +110,10 @@ in
         };
 
         reclaimPolicy = mkOption {
-          type = types.enum [ "Delete" "Retain" ];
+          type = types.enum [
+            "Delete"
+            "Retain"
+          ];
           default = "Delete";
           description = "Volume reclaim policy";
         };
@@ -118,7 +135,11 @@ in
 
       monitors = mkOption {
         type = types.listOf types.str;
-        default = [ "10.0.0.1:6789" "10.0.0.2:6789" "10.0.0.3:6789" ];
+        default = [
+          "10.0.0.1:6789"
+          "10.0.0.2:6789"
+          "10.0.0.3:6789"
+        ];
         description = "List of Ceph monitor addresses";
       };
     };
@@ -180,16 +201,21 @@ in
         configMaps.ceph-csi-config = {
           data = {
             "config.json" = builtins.toJSON [
-              (if cfg.sops.enable then 
-                let sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
-                in {
-                  clusterID = sopsData.clusterID;
-                  monitors = sopsData.monitors;
-                }
-              else {
-                clusterID = cfg.cluster.clusterID;
-                monitors = cfg.cluster.monitors;
-              })
+              (
+                if cfg.sops.enable then
+                  let
+                    sopsData = decryptSOPS cfg.sops.secretsFile "ceph";
+                  in
+                  {
+                    clusterID = sopsData.clusterID;
+                    monitors = sopsData.monitors;
+                  }
+                else
+                  {
+                    clusterID = cfg.cluster.clusterID;
+                    monitors = cfg.cluster.monitors;
+                  }
+              )
             ];
           };
         };
@@ -197,112 +223,177 @@ in
         # Ceph CSI Encryption Config Map
         configMaps.ceph-csi-encryption-kms-config = {
           data = {
-            "config.json" = builtins.toJSON {};
+            "config.json" = builtins.toJSON { };
           };
         };
 
         # RBD Secret
         secrets.csi-rbd-secret = lib.mkIf cfg.rbd.enable {
-          stringData = 
-            if cfg.sops.enable then 
+          stringData =
+            if cfg.sops.enable then
               decryptSOPS cfg.sops.secretsFile "ceph"
-            else {
-              userID = cfg.secrets.userID;
-              userKey = cfg.secrets.userKey;
-            };
+            else
+              {
+                userID = cfg.secrets.userID;
+                userKey = cfg.secrets.userKey;
+              };
         };
 
-        # CephFS Secret  
+        # CephFS Secret
         secrets.csi-cephfs-secret = lib.mkIf cfg.cephfs.enable {
-          stringData = 
-            if cfg.sops.enable then {
-              adminID = (decryptSOPS cfg.sops.secretsFile "ceph").adminID;
-              adminKey = (decryptSOPS cfg.sops.secretsFile "ceph").adminKey;
-            } else {
-              adminID = cfg.secrets.adminID;
-              adminKey = cfg.secrets.adminKey;
-            };
+          stringData =
+            if cfg.sops.enable then
+              {
+                adminID = (decryptSOPS cfg.sops.secretsFile "ceph").adminID;
+                adminKey = (decryptSOPS cfg.sops.secretsFile "ceph").adminKey;
+              }
+            else
+              {
+                adminID = cfg.secrets.adminID;
+                adminKey = cfg.secrets.adminKey;
+              };
         };
 
         # RBD Provisioner RBAC
-        serviceAccounts.rbd-csi-provisioner = lib.mkIf cfg.rbd.enable {};
+        serviceAccounts.rbd-csi-provisioner = lib.mkIf cfg.rbd.enable { };
 
         clusterRoles.rbd-external-provisioner-runner = lib.mkIf cfg.rbd.enable {
           rules = [
             {
-              apiGroups = [""];
-              resources = ["secrets"];
-              verbs = ["get" "list"];
+              apiGroups = [ "" ];
+              resources = [ "secrets" ];
+              verbs = [
+                "get"
+                "list"
+              ];
             }
             {
-              apiGroups = [""];
-              resources = ["persistentvolumes"];
-              verbs = ["get" "list" "watch" "create" "delete"];
+              apiGroups = [ "" ];
+              resources = [ "persistentvolumes" ];
+              verbs = [
+                "get"
+                "list"
+                "watch"
+                "create"
+                "delete"
+              ];
             }
             {
-              apiGroups = [""];
-              resources = ["persistentvolumeclaims"];
-              verbs = ["get" "list" "watch" "update"];
+              apiGroups = [ "" ];
+              resources = [ "persistentvolumeclaims" ];
+              verbs = [
+                "get"
+                "list"
+                "watch"
+                "update"
+              ];
             }
             {
-              apiGroups = ["storage.k8s.io"];
-              resources = ["storageclasses"];
-              verbs = ["get" "list" "watch"];
+              apiGroups = [ "storage.k8s.io" ];
+              resources = [ "storageclasses" ];
+              verbs = [
+                "get"
+                "list"
+                "watch"
+              ];
             }
             {
-              apiGroups = [""];
-              resources = ["events"];
-              verbs = ["list" "watch" "create" "update" "patch"];
+              apiGroups = [ "" ];
+              resources = [ "events" ];
+              verbs = [
+                "list"
+                "watch"
+                "create"
+                "update"
+                "patch"
+              ];
             }
             {
-              apiGroups = ["snapshot.storage.k8s.io"];
-              resources = ["volumesnapshots"];
-              verbs = ["get" "list"];
+              apiGroups = [ "snapshot.storage.k8s.io" ];
+              resources = [ "volumesnapshots" ];
+              verbs = [
+                "get"
+                "list"
+              ];
             }
             {
-              apiGroups = ["snapshot.storage.k8s.io"];
-              resources = ["volumesnapshotcontents"];
-              verbs = ["create" "get" "list" "watch" "update" "delete"];
+              apiGroups = [ "snapshot.storage.k8s.io" ];
+              resources = [ "volumesnapshotcontents" ];
+              verbs = [
+                "create"
+                "get"
+                "list"
+                "watch"
+                "update"
+                "delete"
+              ];
             }
             {
-              apiGroups = ["snapshot.storage.k8s.io"];
-              resources = ["volumesnapshotclasses"];
-              verbs = ["get" "list" "watch"];
+              apiGroups = [ "snapshot.storage.k8s.io" ];
+              resources = [ "volumesnapshotclasses" ];
+              verbs = [
+                "get"
+                "list"
+                "watch"
+              ];
             }
             {
-              apiGroups = ["storage.k8s.io"];
-              resources = ["volumeattachments"];
-              verbs = ["get" "list" "watch" "update" "patch"];
+              apiGroups = [ "storage.k8s.io" ];
+              resources = [ "volumeattachments" ];
+              verbs = [
+                "get"
+                "list"
+                "watch"
+                "update"
+                "patch"
+              ];
             }
             {
-              apiGroups = ["storage.k8s.io"];
-              resources = ["volumeattachments/status"];
-              verbs = ["patch"];
+              apiGroups = [ "storage.k8s.io" ];
+              resources = [ "volumeattachments/status" ];
+              verbs = [ "patch" ];
             }
             {
-              apiGroups = ["storage.k8s.io"];
-              resources = ["csinodes"];
-              verbs = ["get" "list" "watch"];
+              apiGroups = [ "storage.k8s.io" ];
+              resources = [ "csinodes" ];
+              verbs = [
+                "get"
+                "list"
+                "watch"
+              ];
             }
             {
-              apiGroups = [""];
-              resources = ["nodes"];
-              verbs = ["get" "list" "watch"];
+              apiGroups = [ "" ];
+              resources = [ "nodes" ];
+              verbs = [
+                "get"
+                "list"
+                "watch"
+              ];
             }
             {
-              apiGroups = ["coordination.k8s.io"];
-              resources = ["leases"];
-              verbs = ["get" "watch" "list" "delete" "update" "create"];
+              apiGroups = [ "coordination.k8s.io" ];
+              resources = [ "leases" ];
+              verbs = [
+                "get"
+                "watch"
+                "list"
+                "delete"
+                "update"
+                "create"
+              ];
             }
           ];
         };
 
         clusterRoleBindings.rbd-csi-provisioner-role = lib.mkIf cfg.rbd.enable {
-          subjects = [{
-            kind = "ServiceAccount";
-            name = "rbd-csi-provisioner";
-            namespace = namespace;
-          }];
+          subjects = [
+            {
+              kind = "ServiceAccount";
+              name = "rbd-csi-provisioner";
+              namespace = namespace;
+            }
+          ];
           roleRef = {
             kind = "ClusterRole";
             name = "rbd-external-provisioner-runner";
@@ -311,24 +402,26 @@ in
         };
 
         # RBD Node Plugin RBAC
-        serviceAccounts.rbd-csi-nodeplugin = lib.mkIf cfg.rbd.enable {};
+        serviceAccounts.rbd-csi-nodeplugin = lib.mkIf cfg.rbd.enable { };
 
         clusterRoles.rbd-csi-nodeplugin = lib.mkIf cfg.rbd.enable {
           rules = [
             {
-              apiGroups = [""];
-              resources = ["nodes"];
-              verbs = ["get"];
+              apiGroups = [ "" ];
+              resources = [ "nodes" ];
+              verbs = [ "get" ];
             }
           ];
         };
 
         clusterRoleBindings.rbd-csi-nodeplugin = lib.mkIf cfg.rbd.enable {
-          subjects = [{
-            kind = "ServiceAccount";
-            name = "rbd-csi-nodeplugin";
-            namespace = namespace;
-          }];
+          subjects = [
+            {
+              kind = "ServiceAccount";
+              name = "rbd-csi-nodeplugin";
+              namespace = namespace;
+            }
+          ];
           roleRef = {
             kind = "ClusterRole";
             name = "rbd-csi-nodeplugin";
@@ -362,14 +455,18 @@ in
                       "--default-fstype=ext4"
                       "--extra-create-metadata=true"
                     ];
-                    env = [{
-                      name = "ADDRESS";
-                      value = "unix:///csi/csi-provisioner.sock";
-                    }];
-                    volumeMounts = [{
-                      name = "socket-dir";
-                      mountPath = "/csi";
-                    }];
+                    env = [
+                      {
+                        name = "ADDRESS";
+                        value = "unix:///csi/csi-provisioner.sock";
+                      }
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "socket-dir";
+                        mountPath = "/csi";
+                      }
+                    ];
                   }
                   {
                     name = "csi-resizer";
@@ -383,14 +480,18 @@ in
                       "--handle-volume-inuse-error=false"
                       "--feature-gates=RecoverVolumeExpansionFailure=true"
                     ];
-                    env = [{
-                      name = "ADDRESS";
-                      value = "unix:///csi/csi-provisioner.sock";
-                    }];
-                    volumeMounts = [{
-                      name = "socket-dir";
-                      mountPath = "/csi";
-                    }];
+                    env = [
+                      {
+                        name = "ADDRESS";
+                        value = "unix:///csi/csi-provisioner.sock";
+                      }
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "socket-dir";
+                        mountPath = "/csi";
+                      }
+                    ];
                   }
                   {
                     name = "csi-attacher";
@@ -402,14 +503,18 @@ in
                       "--leader-election=true"
                       "--retry-interval-start=500ms"
                     ];
-                    env = [{
-                      name = "ADDRESS";
-                      value = "unix:///csi/csi-provisioner.sock";
-                    }];
-                    volumeMounts = [{
-                      name = "socket-dir";
-                      mountPath = "/csi";
-                    }];
+                    env = [
+                      {
+                        name = "ADDRESS";
+                        value = "unix:///csi/csi-provisioner.sock";
+                      }
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "socket-dir";
+                        mountPath = "/csi";
+                      }
+                    ];
                   }
                   {
                     name = "csi-snapshotter";
@@ -421,14 +526,18 @@ in
                       "--leader-election=true"
                       "--extra-create-metadata=true"
                     ];
-                    env = [{
-                      name = "ADDRESS";
-                      value = "unix:///csi/csi-provisioner.sock";
-                    }];
-                    volumeMounts = [{
-                      name = "socket-dir";
-                      mountPath = "/csi";
-                    }];
+                    env = [
+                      {
+                        name = "ADDRESS";
+                        value = "unix:///csi/csi-provisioner.sock";
+                      }
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "socket-dir";
+                        mountPath = "/csi";
+                      }
+                    ];
                   }
                   {
                     name = "csi-rbdplugin";
@@ -511,19 +620,25 @@ in
                       "--polltime=60s"
                       "--timeout=3s"
                     ];
-                    env = [{
-                      name = "CSI_ENDPOINT";
-                      value = "unix:///csi/csi-provisioner.sock";
-                    }];
-                    volumeMounts = [{
-                      name = "socket-dir";
-                      mountPath = "/csi";
-                    }];
-                    ports = [{
-                      name = "http-metrics";
-                      containerPort = 8080;
-                      protocol = "TCP";
-                    }];
+                    env = [
+                      {
+                        name = "CSI_ENDPOINT";
+                        value = "unix:///csi/csi-provisioner.sock";
+                      }
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "socket-dir";
+                        mountPath = "/csi";
+                      }
+                    ];
+                    ports = [
+                      {
+                        name = "http-metrics";
+                        containerPort = 8080;
+                        protocol = "TCP";
+                      }
+                    ];
                   }
                 ];
                 volumes = [
@@ -561,7 +676,7 @@ in
                   }
                   {
                     name = "ceph-config";
-                    emptyDir = {};
+                    emptyDir = { };
                   }
                 ];
               };
@@ -593,10 +708,12 @@ in
                       "--csi-address=/csi/csi.sock"
                       "--kubelet-registration-path=/var/lib/kubelet/plugins/rbd.csi.ceph.com/csi.sock"
                     ];
-                    env = [{
-                      name = "KUBE_NODE_NAME";
-                      valueFrom.fieldRef.fieldPath = "spec.nodeName";
-                    }];
+                    env = [
+                      {
+                        name = "KUBE_NODE_NAME";
+                        valueFrom.fieldRef.fieldPath = "spec.nodeName";
+                      }
+                    ];
                     volumeMounts = [
                       {
                         name = "plugin-dir";
@@ -642,7 +759,7 @@ in
                     securityContext = {
                       privileged = true;
                       capabilities = {
-                        add = ["SYS_ADMIN"];
+                        add = [ "SYS_ADMIN" ];
                       };
                       allowPrivilegeEscalation = true;
                     };
@@ -703,19 +820,25 @@ in
                       "--polltime=60s"
                       "--timeout=3s"
                     ];
-                    env = [{
-                      name = "CSI_ENDPOINT";
-                      value = "unix:///csi/csi.sock";
-                    }];
-                    volumeMounts = [{
-                      name = "plugin-dir";
-                      mountPath = "/csi";
-                    }];
-                    ports = [{
-                      name = "http-metrics";
-                      containerPort = 8080;
-                      protocol = "TCP";
-                    }];
+                    env = [
+                      {
+                        name = "CSI_ENDPOINT";
+                        value = "unix:///csi/csi.sock";
+                      }
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "plugin-dir";
+                        mountPath = "/csi";
+                      }
+                    ];
+                    ports = [
+                      {
+                        name = "http-metrics";
+                        containerPort = 8080;
+                        protocol = "TCP";
+                      }
+                    ];
                   }
                 ];
                 volumes = [
@@ -775,7 +898,7 @@ in
                   }
                   {
                     name = "ceph-config";
-                    emptyDir = {};
+                    emptyDir = { };
                   }
                 ];
               };

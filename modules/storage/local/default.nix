@@ -25,13 +25,19 @@ in
       };
 
       reclaimPolicy = mkOption {
-        type = types.enum [ "Delete" "Retain" ];
+        type = types.enum [
+          "Delete"
+          "Retain"
+        ];
         default = "Delete";
         description = "Reclaim policy for local volumes";
       };
 
       volumeBindingMode = mkOption {
-        type = types.enum [ "Immediate" "WaitForFirstConsumer" ];
+        type = types.enum [
+          "Immediate"
+          "WaitForFirstConsumer"
+        ];
         default = "WaitForFirstConsumer";
         description = "Volume binding mode";
       };
@@ -39,7 +45,7 @@ in
 
     nodePathMap = mkOption {
       type = types.attrsOf types.str;
-      default = {};
+      default = { };
       example = {
         "worker-1" = "/opt/local-path-provisioner";
         "worker-2" = "/mnt/storage";
@@ -81,30 +87,49 @@ in
         };
 
         # ServiceAccount for local-path-provisioner
-        serviceAccounts.local-path-provisioner-service-account = {};
+        serviceAccounts.local-path-provisioner-service-account = { };
 
         # ClusterRole for local-path-provisioner
         clusterRoles.local-path-provisioner-role = {
           rules = [
             {
-              apiGroups = [""];
-              resources = ["nodes" "persistentvolumeclaims" "configmaps"];
-              verbs = ["get" "list" "watch"];
+              apiGroups = [ "" ];
+              resources = [
+                "nodes"
+                "persistentvolumeclaims"
+                "configmaps"
+              ];
+              verbs = [
+                "get"
+                "list"
+                "watch"
+              ];
             }
             {
-              apiGroups = [""];
-              resources = ["endpoints" "persistentvolumes" "pods"];
-              verbs = ["*"];
+              apiGroups = [ "" ];
+              resources = [
+                "endpoints"
+                "persistentvolumes"
+                "pods"
+              ];
+              verbs = [ "*" ];
             }
             {
-              apiGroups = [""];
-              resources = ["events"];
-              verbs = ["create" "patch"];
+              apiGroups = [ "" ];
+              resources = [ "events" ];
+              verbs = [
+                "create"
+                "patch"
+              ];
             }
             {
-              apiGroups = ["storage.k8s.io"];
-              resources = ["storageclasses"];
-              verbs = ["get" "list" "watch"];
+              apiGroups = [ "storage.k8s.io" ];
+              resources = [ "storageclasses" ];
+              verbs = [
+                "get"
+                "list"
+                "watch"
+              ];
             }
           ];
         };
@@ -116,11 +141,13 @@ in
             kind = "ClusterRole";
             name = "local-path-provisioner-role";
           };
-          subjects = [{
-            kind = "ServiceAccount";
-            name = "local-path-provisioner-service-account";
-            namespace = "local-path-storage";
-          }];
+          subjects = [
+            {
+              kind = "ServiceAccount";
+              name = "local-path-provisioner-service-account";
+              namespace = "local-path-storage";
+            }
+          ];
         };
 
         # Local Path Provisioner Deployment
@@ -136,42 +163,48 @@ in
               };
               spec = {
                 serviceAccountName = "local-path-provisioner-service-account";
-                containers = [{
-                  name = "local-path-provisioner";
-                  image = "rancher/local-path-provisioner:v0.0.28";
-                  imagePullPolicy = "IfNotPresent";
-                  command = [
-                    "local-path-provisioner"
-                    "--debug"
-                    "start"
-                    "--config"
-                    "/etc/config/config.json"
-                  ];
-                  volumeMounts = [{
+                containers = [
+                  {
+                    name = "local-path-provisioner";
+                    image = "rancher/local-path-provisioner:v0.0.28";
+                    imagePullPolicy = "IfNotPresent";
+                    command = [
+                      "local-path-provisioner"
+                      "--debug"
+                      "start"
+                      "--config"
+                      "/etc/config/config.json"
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "config-volume";
+                        mountPath = "/etc/config/";
+                      }
+                    ];
+                    env = [
+                      {
+                        name = "POD_NAMESPACE";
+                        valueFrom.fieldRef.fieldPath = "metadata.namespace";
+                      }
+                    ];
+                    resources = {
+                      requests = {
+                        cpu = "100m";
+                        memory = "128Mi";
+                      };
+                      limits = {
+                        cpu = "200m";
+                        memory = "256Mi";
+                      };
+                    };
+                  }
+                ];
+                volumes = [
+                  {
                     name = "config-volume";
-                    mountPath = "/etc/config/";
-                  }];
-                  env = [
-                    {
-                      name = "POD_NAMESPACE";
-                      valueFrom.fieldRef.fieldPath = "metadata.namespace";
-                    }
-                  ];
-                  resources = {
-                    requests = {
-                      cpu = "100m";
-                      memory = "128Mi";
-                    };
-                    limits = {
-                      cpu = "200m";
-                      memory = "256Mi";
-                    };
-                  };
-                }];
-                volumes = [{
-                  name = "config-volume";
-                  configMap.name = "local-path-config";
-                }];
+                    configMap.name = "local-path-config";
+                  }
+                ];
               };
             };
           };

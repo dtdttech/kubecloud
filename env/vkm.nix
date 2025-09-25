@@ -13,24 +13,37 @@
       for the VKM (Fachgebiet für Verbrennungskraftmaschinen und Fahrzeugantriebe) deployment.
     '';
   };
-  
+
   networking.domain = "vkm.maschinenbau.tu-darmstadt.de";
+
+  # External DNS configuration for DNS management
+  networking.external-dns = {
+    enable = true;
+    domainFilters = [ "k.vkm.maschinenbau.tu-darmstadt.de" "vkm.maschinenbau.tu-darmstadt.de" ];
+    provider = "coredns";
+    values = {
+      # External-dns will manage both zones
+      coredns = {
+        # Let external-dns manage records in CoreDNS for both zones
+      };
+    };
+  };
 
   # Storage configuration for VKM production environment
   storage = {
-    defaultProvider = "ceph";  # Use Ceph for production storage
+    defaultProvider = "ceph"; # Use Ceph for production storage
     storageClasses = {
-      rwo = "ceph-rbd";        # ReadWriteOnce uses RBD (block storage)
-      rwx = "ceph-cephfs";     # ReadWriteMany uses CephFS (filesystem)
-      rox = "ceph-cephfs";     # ReadOnlyMany uses CephFS (filesystem)
+      rwo = "ceph-rbd"; # ReadWriteOnce uses RBD (block storage)
+      rwx = "ceph-cephfs"; # ReadWriteMany uses CephFS (filesystem)
+      rox = "ceph-cephfs"; # ReadOnlyMany uses CephFS (filesystem)
     };
     providers = {
-      local.enable = false;    # Disable local storage in production
+      local.enable = false; # Disable local storage in production
       ceph = {
         enable = true;
         # Enable SOPS-based secret management
         sops = {
-          enable = false;  # SOPS integration framework ready, but disabled due to pure evaluation constraints
+          enable = false; # SOPS integration framework ready, but disabled due to pure evaluation constraints
           secretsFile = ../../secrets/vkm.sops.yaml;
           secretsPath = "ceph";
         };
@@ -66,7 +79,7 @@
   #   security = {
   #     enforceEncryption = true;
   #     allowedNamespaces = [
-  #       "bookstack" "keycloak" "librebooking" "zammad" 
+  #       "bookstack" "keycloak" "librebooking" "zammad"
   #       "passbolt" "acme-dns" "monitoring" "kube-system"
   #     ];
   #   };
@@ -154,7 +167,7 @@
 
   scheduling.librebooking = {
     enable = true;
-    domain = "booked.vkm.maschinenbau.tu-darmstadt.de";
+    domain = "booked.k.vkm.maschinenbau.tu-darmstadt.de";
     timezone = "Europe/Berlin";
     environment = "production";
     database = {
@@ -182,7 +195,7 @@
               volumeClaimTemplate = {
                 spec = {
                   storageClassName = "ceph-rbd";
-                  accessModes = ["ReadWriteOnce"];
+                  accessModes = [ "ReadWriteOnce" ];
                   resources = {
                     requests = {
                       storage = "20Gi";
@@ -195,7 +208,7 @@
         };
       };
     };
-    
+
     grafana = {
       enable = true;
       values = {
@@ -208,7 +221,7 @@
         adminPassword = "grafana_vkm_admin123";
         ingress = {
           enabled = true;
-          hosts = ["grafana.vkm.maschinenbau.tu-darmstadt.de"];
+          hosts = [ "grafana.k.vkm.maschinenbau.tu-darmstadt.de" ];
           ingressClassName = "traefik";
           annotations = {
             "traefik.ingress.kubernetes.io/router.middlewares" = "traefik-dashboard-auth@kubernetescrd";
@@ -232,7 +245,7 @@
   security.cert-manager = {
     enable = true;
     namespace = "cert-manager";
-    
+
     clusterIssuers = {
       # Let's Encrypt staging issuer for testing
       letsencrypt-staging = {
@@ -251,7 +264,7 @@
           ];
         };
       };
-      
+
       # Let's Encrypt production issuer for VKM domains
       letsencrypt-vkm = {
         type = "acme";
@@ -269,15 +282,15 @@
           ];
         };
       };
-      
+
       # Self-signed for testing
       selfsigned-vkm = {
         type = "selfSigned";
       };
     };
-    
-    defaultIssuer = "letsencrypt-staging";  # Use staging for initial testing
-    
+
+    defaultIssuer = "letsencrypt-staging"; # Use staging for initial testing
+
     monitoring = {
       enabled = true;
       alerts = {
@@ -285,11 +298,11 @@
         certificateRenewalFailure = true;
       };
     };
-    
+
     security = {
       networkPolicies.enabled = true;
     };
-    
+
     # Enhanced resource limits for production
     values = {
       resources = {
@@ -327,7 +340,7 @@
 
   support.zammad = {
     enable = true;
-    domain = "support.vkm.maschinenbau.tu-darmstadt.de";
+    domain = "support.k.vkm.maschinenbau.tu-darmstadt.de";
     version = "6.5.1";
     timezone = "Europe/Berlin";
     database = {
@@ -365,7 +378,7 @@
   # security.cert-manager = {
   #   enable = true;
   #   namespace = "cert-manager";
-  #   
+  #
   #   clusterIssuers = {
   #     # Let's Encrypt production issuer for VKM domains
   #     letsencrypt-vkm = {
@@ -399,7 +412,7 @@
   #         ];
   #       };
   #     };
-  #     
+  #
   #     # University CA for internal certificates
   #     tu-darmstadt-ca = {
   #       type = "ca";
@@ -407,15 +420,15 @@
   #         secretName = "tu-darmstadt-ca-key-pair";
   #       };
   #     };
-  #     
+  #
   #     # Self-signed for testing
   #     selfsigned-vkm = {
   #       type = "selfSigned";
   #     };
   #   };
-  #   
+  #
   #   defaultIssuer = "letsencrypt-vkm";
-  #   
+  #
   #   dns.providers = {
   #     acme-dns = {
   #       type = "acmedns";
@@ -425,7 +438,7 @@
   #       };
   #     };
   #   };
-  #   
+  #
   #   monitoring = {
   #     enabled = true;
   #     alerts = {
@@ -433,11 +446,11 @@
   #       certificateRenewalFailure = true;
   #     };
   #   };
-  #   
+  #
   #   security = {
   #     networkPolicies.enabled = true;
   #   };
-  #   
+  #
   #   # Enhanced resource limits for production
   #   values = {
   #     resources = {
@@ -481,7 +494,7 @@
   #     namespace = "website";
   #     createNamespace = true;
   #     replicas = 3; # High availability for university
-  #     
+  #
   #     sites = {
   #       main = {
   #         port = 80;
@@ -489,7 +502,7 @@
   #         root = "/usr/share/nginx/html";
   #         index = "index.html index.htm";
   #         defaultServer = true;
-  #         
+  #
   #         locations = [
   #           {
   #             path = "/";
@@ -522,7 +535,7 @@
   #             extraConfig = "add_header Content-Type text/plain;";
   #           }
   #         ];
-  #         
+  #
   #         extraConfig = ''
   #           # University-specific security headers
   #           add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
@@ -530,11 +543,11 @@
   #           add_header X-Content-Type-Options nosniff always;
   #           add_header X-Frame-Options SAMEORIGIN always;
   #           add_header Referrer-Policy strict-origin-when-cross-origin always;
-  #           
+  #
   #           # Custom error pages
   #           error_page 404 /404.html;
   #           error_page 500 502 503 504 /50x.html;
-  #           
+  #
   #           # Redirect non-www to www
   #           if ($host = vkm.maschinenbau.tu-darmstadt.de) {
   #               return 301 https://www.vkm.maschinenbau.tu-darmstadt.de$request_uri;
@@ -542,7 +555,7 @@
   #         '';
   #       };
   #     };
-  #     
+  #
   #     storage = {
   #       provider = "ceph";
   #       content = {
@@ -550,7 +563,7 @@
   #         size = "50Gi"; # Large storage for university content
   #       };
   #     };
-  #     
+  #
   #     ingress = {
   #       enable = true;
   #       host = "www.vkm.maschinenbau.tu-darmstadt.de";
@@ -560,9 +573,9 @@
   #         "traefik.ingress.kubernetes.io/router.middlewares" = "website-headers@kubernetescrd";
   #       };
   #     };
-  #     
+  #
   #     monitoring.enabled = true;
-  #     
+  #
   #     resources = {
   #       requests = {
   #         cpu = "50m";
@@ -580,28 +593,28 @@
   #     enable = true;
   #     namespace = "research";
   #     createNamespace = true;
-  #     
+  #
   #     upstreams = {
   #       research-backend = {
-  #         servers = [ 
+  #         servers = [
   #           "research-app-1.research.svc.cluster.local:8080"
   #           "research-app-2.research.svc.cluster.local:8080"
   #         ];
   #         method = "ip_hash"; # Session persistence
   #         keepalive = 32;
   #       };
-  #       
+  #
   #       data-service = {
   #         servers = [ "data-service.research.svc.cluster.local:3000" ];
   #         keepalive = 16;
   #       };
   #     };
-  #     
+  #
   #     sites = {
   #       portal = {
   #         port = 80;
   #         serverName = "research.vkm.maschinenbau.tu-darmstadt.de";
-  #         
+  #
   #         locations = [
   #           {
   #             path = "/";
@@ -635,24 +648,24 @@
   #             extraConfig = "add_header Content-Type text/plain;";
   #           }
   #         ];
-  #         
+  #
   #         extraConfig = ''
   #           # Rate limiting for research portal
   #           limit_req_zone $binary_remote_addr zone=research:10m rate=30r/m;
   #           limit_req zone=research burst=10 nodelay;
-  #           
+  #
   #           # Academic access logging
   #           access_log /var/log/nginx/research_access.log main;
   #         '';
   #       };
   #     };
-  #     
+  #
   #     globalConfig = {
   #       client_max_body_size = "100m";
   #       keepalive_timeout = "300";
   #       proxy_cache_path = "/var/cache/nginx levels=1:2 keys_zone=research_cache:10m max_size=1g inactive=60m use_temp_path=off";
   #     };
-  #     
+  #
   #     storage = {
   #       provider = "ceph";
   #       content = {
@@ -660,7 +673,7 @@
   #         size = "100Gi"; # Large storage for research data
   #       };
   #     };
-  #     
+  #
   #     ingress = {
   #       enable = true;
   #       host = "research.vkm.maschinenbau.tu-darmstadt.de";
@@ -670,9 +683,9 @@
   #         "traefik.ingress.kubernetes.io/router.middlewares" = "research-auth@kubernetescrd";
   #       };
   #     };
-  #     
+  #
   #     monitoring.enabled = true;
-  #     
+  #
   #     resources = {
   #       requests = {
   #         cpu = "100m";
@@ -690,24 +703,24 @@
   #     enable = true;
   #     namespace = "student-services";
   #     createNamespace = true;
-  #     
+  #
   #     upstreams = {
   #       booking-service = {
   #         servers = [ "librebooking.librebooking.svc.cluster.local:80" ];
   #         keepalive = 32;
   #       };
-  #       
+  #
   #       support-service = {
   #         servers = [ "zammad.zammad.svc.cluster.local:80" ];
   #         keepalive = 16;
   #       };
   #     };
-  #     
+  #
   #     sites = {
   #       services = {
   #         port = 80;
   #         serverName = "services.vkm.maschinenbau.tu-darmstadt.de";
-  #         
+  #
   #         locations = [
   #           {
   #             path = "/";
@@ -735,18 +748,18 @@
   #             extraConfig = "add_header Content-Type text/plain;";
   #           }
   #         ];
-  #         
+  #
   #         extraConfig = ''
   #           # Student access logging
   #           access_log /var/log/nginx/student_access.log main;
-  #           
+  #
   #           # Rate limiting for students
   #           limit_req_zone $binary_remote_addr zone=students:10m rate=60r/m;
   #           limit_req zone=students burst=20 nodelay;
   #         '';
   #       };
   #     };
-  #     
+  #
   #     ingress = {
   #       enable = true;
   #       host = "services.vkm.maschinenbau.tu-darmstadt.de";
@@ -755,7 +768,7 @@
   #         "cert-manager.io/cluster-issuer" = "letsencrypt-vkm";
   #       };
   #     };
-  #     
+  #
   #     monitoring.enabled = true;
   #   };
   # };

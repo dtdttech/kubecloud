@@ -13,7 +13,11 @@ in
   options.storage = with lib; {
     # Default storage provider for the environment
     defaultProvider = mkOption {
-      type = types.enum [ "local" "ceph" "longhorn" ];
+      type = types.enum [
+        "local"
+        "ceph"
+        "longhorn"
+      ];
       default = "local";
       description = ''
         Default storage provider to use for volumes when not explicitly specified.
@@ -26,7 +30,7 @@ in
     # Global storage class mappings
     storageClasses = mkOption {
       type = types.attrsOf types.str;
-      default = {};
+      default = { };
       example = {
         rwo = "ceph-rbd";
         rwx = "ceph-cephfs";
@@ -44,7 +48,7 @@ in
   config = {
     # Make storage utilities available to all modules
     _module.args.storageLib = storageLib;
-    
+
     # Expose storage configuration to all modules
     _module.args.storageConfig = {
       defaultProvider = config.storage.defaultProvider;

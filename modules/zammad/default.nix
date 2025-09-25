@@ -86,45 +86,53 @@ in
                 component = "database";
               };
               spec = {
-                containers = [{
-                  name = "postgresql";
-                  image = "postgres:15";
-                  env = [
-                    {
-                      name = "POSTGRES_DB";
-                      value = cfg.database.name;
-                    }
-                    {
-                      name = "POSTGRES_USER";
-                      value = cfg.database.user;
-                    }
-                    {
-                      name = "POSTGRES_PASSWORD";
-                      value = cfg.database.password;
-                    }
-                  ];
-                  ports = [{
-                    containerPort = 5432;
-                  }];
-                  volumeMounts = [{
+                containers = [
+                  {
+                    name = "postgresql";
+                    image = "postgres:15";
+                    env = [
+                      {
+                        name = "POSTGRES_DB";
+                        value = cfg.database.name;
+                      }
+                      {
+                        name = "POSTGRES_USER";
+                        value = cfg.database.user;
+                      }
+                      {
+                        name = "POSTGRES_PASSWORD";
+                        value = cfg.database.password;
+                      }
+                    ];
+                    ports = [
+                      {
+                        containerPort = 5432;
+                      }
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "postgresql-storage";
+                        mountPath = "/var/lib/postgresql/data";
+                      }
+                    ];
+                    resources = {
+                      requests = {
+                        memory = "512Mi";
+                        cpu = "300m";
+                      };
+                      limits = {
+                        memory = "1Gi";
+                        cpu = "500m";
+                      };
+                    };
+                  }
+                ];
+                volumes = [
+                  {
                     name = "postgresql-storage";
-                    mountPath = "/var/lib/postgresql/data";
-                  }];
-                  resources = {
-                    requests = {
-                      memory = "512Mi";
-                      cpu = "300m";
-                    };
-                    limits = {
-                      memory = "1Gi";
-                      cpu = "500m";
-                    };
-                  };
-                }];
-                volumes = [{
-                  name = "postgresql-storage";
-                  persistentVolumeClaim.claimName = "postgresql-pvc";
-                }];
+                    persistentVolumeClaim.claimName = "postgresql-pvc";
+                  }
+                ];
               };
             };
           };
@@ -144,31 +152,39 @@ in
                 component = "cache";
               };
               spec = {
-                containers = [{
-                  name = "redis";
-                  image = "redis:7.4.5";
-                  ports = [{
-                    containerPort = 6379;
-                  }];
-                  volumeMounts = [{
+                containers = [
+                  {
+                    name = "redis";
+                    image = "redis:7.4.5";
+                    ports = [
+                      {
+                        containerPort = 6379;
+                      }
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "redis-storage";
+                        mountPath = "/data";
+                      }
+                    ];
+                    resources = {
+                      requests = {
+                        memory = "128Mi";
+                        cpu = "100m";
+                      };
+                      limits = {
+                        memory = "256Mi";
+                        cpu = "200m";
+                      };
+                    };
+                  }
+                ];
+                volumes = [
+                  {
                     name = "redis-storage";
-                    mountPath = "/data";
-                  }];
-                  resources = {
-                    requests = {
-                      memory = "128Mi";
-                      cpu = "100m";
-                    };
-                    limits = {
-                      memory = "256Mi";
-                      cpu = "200m";
-                    };
-                  };
-                }];
-                volumes = [{
-                  name = "redis-storage";
-                  persistentVolumeClaim.claimName = "redis-pvc";
-                }];
+                    persistentVolumeClaim.claimName = "redis-pvc";
+                  }
+                ];
               };
             };
           };
@@ -188,23 +204,27 @@ in
                 component = "cache";
               };
               spec = {
-                containers = [{
-                  name = "memcached";
-                  image = "memcached:1.6.39";
-                  ports = [{
-                    containerPort = 11211;
-                  }];
-                  resources = {
-                    requests = {
-                      memory = "64Mi";
-                      cpu = "50m";
+                containers = [
+                  {
+                    name = "memcached";
+                    image = "memcached:1.6.39";
+                    ports = [
+                      {
+                        containerPort = 11211;
+                      }
+                    ];
+                    resources = {
+                      requests = {
+                        memory = "64Mi";
+                        cpu = "50m";
+                      };
+                      limits = {
+                        memory = "128Mi";
+                        cpu = "100m";
+                      };
                     };
-                    limits = {
-                      memory = "128Mi";
-                      cpu = "100m";
-                    };
-                  };
-                }];
+                  }
+                ];
               };
             };
           };
@@ -224,45 +244,53 @@ in
                 component = "search";
               };
               spec = {
-                containers = [{
-                  name = "elasticsearch";
-                  image = "docker.elastic.co/elasticsearch/elasticsearch:${cfg.elasticsearch.version}";
-                  env = [
-                    {
-                      name = "discovery.type";
-                      value = "single-node";
-                    }
-                    {
-                      name = "xpack.security.enabled";
-                      value = "false";
-                    }
-                    {
-                      name = "ES_JAVA_OPTS";
-                      value = "-Xms512m -Xmx512m";
-                    }
-                  ];
-                  ports = [{
-                    containerPort = 9200;
-                  }];
-                  volumeMounts = [{
+                containers = [
+                  {
+                    name = "elasticsearch";
+                    image = "docker.elastic.co/elasticsearch/elasticsearch:${cfg.elasticsearch.version}";
+                    env = [
+                      {
+                        name = "discovery.type";
+                        value = "single-node";
+                      }
+                      {
+                        name = "xpack.security.enabled";
+                        value = "false";
+                      }
+                      {
+                        name = "ES_JAVA_OPTS";
+                        value = "-Xms512m -Xmx512m";
+                      }
+                    ];
+                    ports = [
+                      {
+                        containerPort = 9200;
+                      }
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "elasticsearch-storage";
+                        mountPath = "/usr/share/elasticsearch/data";
+                      }
+                    ];
+                    resources = {
+                      requests = {
+                        memory = "1Gi";
+                        cpu = "500m";
+                      };
+                      limits = {
+                        memory = "2Gi";
+                        cpu = "1000m";
+                      };
+                    };
+                  }
+                ];
+                volumes = [
+                  {
                     name = "elasticsearch-storage";
-                    mountPath = "/usr/share/elasticsearch/data";
-                  }];
-                  resources = {
-                    requests = {
-                      memory = "1Gi";
-                      cpu = "500m";
-                    };
-                    limits = {
-                      memory = "2Gi";
-                      cpu = "1000m";
-                    };
-                  };
-                }];
-                volumes = [{
-                  name = "elasticsearch-storage";
-                  persistentVolumeClaim.claimName = "elasticsearch-pvc";
-                }];
+                    persistentVolumeClaim.claimName = "elasticsearch-pvc";
+                  }
+                ];
               };
             };
           };
@@ -284,59 +312,71 @@ in
                       "until nc -z postgresql.${namespace}.svc.cluster.local 5432; do echo waiting for postgresql; sleep 2; done;"
                     ];
                   }
-                ] ++ lib.optionals cfg.elasticsearch.enabled [{
-                  name = "wait-for-elasticsearch";
-                  image = "busybox:1.36";
-                  command = [
-                    "sh"
-                    "-c"
-                    "until nc -z elasticsearch.${namespace}.svc.cluster.local 9200; do echo waiting for elasticsearch; sleep 2; done;"
-                  ];
-                }];
-                containers = [{
-                  name = "zammad-init";
-                  image = "ghcr.io/zammad/zammad:${cfg.version}";
-                  command = ["zammad" "run" "rails" "r" "Setting.set('system_init_done', true)"];
-                  env = [
-                    {
-                      name = "POSTGRES_HOST";
-                      value = "postgresql.${namespace}.svc.cluster.local";
-                    }
-                    {
-                      name = "POSTGRES_DB";
-                      value = cfg.database.name;
-                    }
-                    {
-                      name = "POSTGRES_USER";
-                      value = cfg.database.user;
-                    }
-                    {
-                      name = "POSTGRES_PASS";
-                      value = cfg.database.password;
-                    }
-                    {
-                      name = "REDIS_URL";
-                      value = "redis://redis.${namespace}.svc.cluster.local:6379";
-                    }
-                    {
-                      name = "MEMCACHE_SERVERS";
-                      value = "memcached.${namespace}.svc.cluster.local:11211";
-                    }
-                  ] ++ lib.optionals cfg.elasticsearch.enabled [
-                    {
-                      name = "ELASTICSEARCH_ENABLED";
-                      value = "true";
-                    }
-                    {
-                      name = "ELASTICSEARCH_HOST";
-                      value = "elasticsearch.${namespace}.svc.cluster.local";
-                    }
-                    {
-                      name = "ELASTICSEARCH_PORT";
-                      value = "9200";
-                    }
-                  ];
-                }];
+                ]
+                ++ lib.optionals cfg.elasticsearch.enabled [
+                  {
+                    name = "wait-for-elasticsearch";
+                    image = "busybox:1.36";
+                    command = [
+                      "sh"
+                      "-c"
+                      "until nc -z elasticsearch.${namespace}.svc.cluster.local 9200; do echo waiting for elasticsearch; sleep 2; done;"
+                    ];
+                  }
+                ];
+                containers = [
+                  {
+                    name = "zammad-init";
+                    image = "ghcr.io/zammad/zammad:${cfg.version}";
+                    command = [
+                      "zammad"
+                      "run"
+                      "rails"
+                      "r"
+                      "Setting.set('system_init_done', true)"
+                    ];
+                    env = [
+                      {
+                        name = "POSTGRES_HOST";
+                        value = "postgresql.${namespace}.svc.cluster.local";
+                      }
+                      {
+                        name = "POSTGRES_DB";
+                        value = cfg.database.name;
+                      }
+                      {
+                        name = "POSTGRES_USER";
+                        value = cfg.database.user;
+                      }
+                      {
+                        name = "POSTGRES_PASS";
+                        value = cfg.database.password;
+                      }
+                      {
+                        name = "REDIS_URL";
+                        value = "redis://redis.${namespace}.svc.cluster.local:6379";
+                      }
+                      {
+                        name = "MEMCACHE_SERVERS";
+                        value = "memcached.${namespace}.svc.cluster.local:11211";
+                      }
+                    ]
+                    ++ lib.optionals cfg.elasticsearch.enabled [
+                      {
+                        name = "ELASTICSEARCH_ENABLED";
+                        value = "true";
+                      }
+                      {
+                        name = "ELASTICSEARCH_HOST";
+                        value = "elasticsearch.${namespace}.svc.cluster.local";
+                      }
+                      {
+                        name = "ELASTICSEARCH_PORT";
+                        value = "9200";
+                      }
+                    ];
+                  }
+                ];
               };
             };
           };
@@ -356,91 +396,105 @@ in
                 component = "railsserver";
               };
               spec = {
-                containers = [{
-                  name = "zammad-railsserver";
-                  image = "ghcr.io/zammad/zammad:${cfg.version}";
-                  command = ["zammad" "run" "rails" "server"];
-                  env = [
-                    {
-                      name = "POSTGRES_HOST";
-                      value = "postgresql.${namespace}.svc.cluster.local";
-                    }
-                    {
-                      name = "POSTGRES_DB";
-                      value = cfg.database.name;
-                    }
-                    {
-                      name = "POSTGRES_USER";
-                      value = cfg.database.user;
-                    }
-                    {
-                      name = "POSTGRES_PASS";
-                      value = cfg.database.password;
-                    }
-                    {
-                      name = "REDIS_URL";
-                      value = "redis://redis.${namespace}.svc.cluster.local:6379";
-                    }
-                    {
-                      name = "MEMCACHE_SERVERS";
-                      value = "memcached.${namespace}.svc.cluster.local:11211";
-                    }
-                    {
-                      name = "TZ";
-                      value = cfg.timezone;
-                    }
-                  ] ++ lib.optionals cfg.elasticsearch.enabled [
-                    {
-                      name = "ELASTICSEARCH_ENABLED";
-                      value = "true";
-                    }
-                    {
-                      name = "ELASTICSEARCH_HOST";
-                      value = "elasticsearch.${namespace}.svc.cluster.local";
-                    }
-                    {
-                      name = "ELASTICSEARCH_PORT";
-                      value = "9200";
-                    }
-                  ];
-                  ports = [{
-                    containerPort = 3000;
-                  }];
-                  volumeMounts = [{
+                containers = [
+                  {
+                    name = "zammad-railsserver";
+                    image = "ghcr.io/zammad/zammad:${cfg.version}";
+                    command = [
+                      "zammad"
+                      "run"
+                      "rails"
+                      "server"
+                    ];
+                    env = [
+                      {
+                        name = "POSTGRES_HOST";
+                        value = "postgresql.${namespace}.svc.cluster.local";
+                      }
+                      {
+                        name = "POSTGRES_DB";
+                        value = cfg.database.name;
+                      }
+                      {
+                        name = "POSTGRES_USER";
+                        value = cfg.database.user;
+                      }
+                      {
+                        name = "POSTGRES_PASS";
+                        value = cfg.database.password;
+                      }
+                      {
+                        name = "REDIS_URL";
+                        value = "redis://redis.${namespace}.svc.cluster.local:6379";
+                      }
+                      {
+                        name = "MEMCACHE_SERVERS";
+                        value = "memcached.${namespace}.svc.cluster.local:11211";
+                      }
+                      {
+                        name = "TZ";
+                        value = cfg.timezone;
+                      }
+                    ]
+                    ++ lib.optionals cfg.elasticsearch.enabled [
+                      {
+                        name = "ELASTICSEARCH_ENABLED";
+                        value = "true";
+                      }
+                      {
+                        name = "ELASTICSEARCH_HOST";
+                        value = "elasticsearch.${namespace}.svc.cluster.local";
+                      }
+                      {
+                        name = "ELASTICSEARCH_PORT";
+                        value = "9200";
+                      }
+                    ];
+                    ports = [
+                      {
+                        containerPort = 3000;
+                      }
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "zammad-storage";
+                        mountPath = "/opt/zammad/storage";
+                      }
+                    ];
+                    resources = {
+                      requests = {
+                        memory = "1Gi";
+                        cpu = "500m";
+                      };
+                      limits = {
+                        memory = "2Gi";
+                        cpu = "1000m";
+                      };
+                    };
+                    livenessProbe = {
+                      httpGet = {
+                        path = "/";
+                        port = 3000;
+                      };
+                      initialDelaySeconds = 60;
+                      periodSeconds = 30;
+                    };
+                    readinessProbe = {
+                      httpGet = {
+                        path = "/";
+                        port = 3000;
+                      };
+                      initialDelaySeconds = 30;
+                      periodSeconds = 10;
+                    };
+                  }
+                ];
+                volumes = [
+                  {
                     name = "zammad-storage";
-                    mountPath = "/opt/zammad/storage";
-                  }];
-                  resources = {
-                    requests = {
-                      memory = "1Gi";
-                      cpu = "500m";
-                    };
-                    limits = {
-                      memory = "2Gi";
-                      cpu = "1000m";
-                    };
-                  };
-                  livenessProbe = {
-                    httpGet = {
-                      path = "/";
-                      port = 3000;
-                    };
-                    initialDelaySeconds = 60;
-                    periodSeconds = 30;
-                  };
-                  readinessProbe = {
-                    httpGet = {
-                      path = "/";
-                      port = 3000;
-                    };
-                    initialDelaySeconds = 30;
-                    periodSeconds = 10;
-                  };
-                }];
-                volumes = [{
-                  name = "zammad-storage";
-                  persistentVolumeClaim.claimName = "zammad-storage-pvc";
-                }];
+                    persistentVolumeClaim.claimName = "zammad-storage-pvc";
+                  }
+                ];
               };
             };
           };
@@ -460,72 +514,85 @@ in
                 component = "scheduler";
               };
               spec = {
-                containers = [{
-                  name = "zammad-scheduler";
-                  image = "ghcr.io/zammad/zammad:${cfg.version}";
-                  command = ["zammad" "run" "rails" "runner" "Scheduler.work"];
-                  env = [
-                    {
-                      name = "POSTGRES_HOST";
-                      value = "postgresql.${namespace}.svc.cluster.local";
-                    }
-                    {
-                      name = "POSTGRES_DB";
-                      value = cfg.database.name;
-                    }
-                    {
-                      name = "POSTGRES_USER";
-                      value = cfg.database.user;
-                    }
-                    {
-                      name = "POSTGRES_PASS";
-                      value = cfg.database.password;
-                    }
-                    {
-                      name = "REDIS_URL";
-                      value = "redis://redis.${namespace}.svc.cluster.local:6379";
-                    }
-                    {
-                      name = "MEMCACHE_SERVERS";
-                      value = "memcached.${namespace}.svc.cluster.local:11211";
-                    }
-                    {
-                      name = "TZ";
-                      value = cfg.timezone;
-                    }
-                  ] ++ lib.optionals cfg.elasticsearch.enabled [
-                    {
-                      name = "ELASTICSEARCH_ENABLED";
-                      value = "true";
-                    }
-                    {
-                      name = "ELASTICSEARCH_HOST";
-                      value = "elasticsearch.${namespace}.svc.cluster.local";
-                    }
-                    {
-                      name = "ELASTICSEARCH_PORT";
-                      value = "9200";
-                    }
-                  ];
-                  volumeMounts = [{
+                containers = [
+                  {
+                    name = "zammad-scheduler";
+                    image = "ghcr.io/zammad/zammad:${cfg.version}";
+                    command = [
+                      "zammad"
+                      "run"
+                      "rails"
+                      "runner"
+                      "Scheduler.work"
+                    ];
+                    env = [
+                      {
+                        name = "POSTGRES_HOST";
+                        value = "postgresql.${namespace}.svc.cluster.local";
+                      }
+                      {
+                        name = "POSTGRES_DB";
+                        value = cfg.database.name;
+                      }
+                      {
+                        name = "POSTGRES_USER";
+                        value = cfg.database.user;
+                      }
+                      {
+                        name = "POSTGRES_PASS";
+                        value = cfg.database.password;
+                      }
+                      {
+                        name = "REDIS_URL";
+                        value = "redis://redis.${namespace}.svc.cluster.local:6379";
+                      }
+                      {
+                        name = "MEMCACHE_SERVERS";
+                        value = "memcached.${namespace}.svc.cluster.local:11211";
+                      }
+                      {
+                        name = "TZ";
+                        value = cfg.timezone;
+                      }
+                    ]
+                    ++ lib.optionals cfg.elasticsearch.enabled [
+                      {
+                        name = "ELASTICSEARCH_ENABLED";
+                        value = "true";
+                      }
+                      {
+                        name = "ELASTICSEARCH_HOST";
+                        value = "elasticsearch.${namespace}.svc.cluster.local";
+                      }
+                      {
+                        name = "ELASTICSEARCH_PORT";
+                        value = "9200";
+                      }
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "zammad-storage";
+                        mountPath = "/opt/zammad/storage";
+                      }
+                    ];
+                    resources = {
+                      requests = {
+                        memory = "512Mi";
+                        cpu = "200m";
+                      };
+                      limits = {
+                        memory = "1Gi";
+                        cpu = "500m";
+                      };
+                    };
+                  }
+                ];
+                volumes = [
+                  {
                     name = "zammad-storage";
-                    mountPath = "/opt/zammad/storage";
-                  }];
-                  resources = {
-                    requests = {
-                      memory = "512Mi";
-                      cpu = "200m";
-                    };
-                    limits = {
-                      memory = "1Gi";
-                      cpu = "500m";
-                    };
-                  };
-                }];
-                volumes = [{
-                  name = "zammad-storage";
-                  persistentVolumeClaim.claimName = "zammad-storage-pvc";
-                }];
+                    persistentVolumeClaim.claimName = "zammad-storage-pvc";
+                  }
+                ];
               };
             };
           };
@@ -545,67 +612,76 @@ in
                 component = "websocket";
               };
               spec = {
-                containers = [{
-                  name = "zammad-websocket";
-                  image = "ghcr.io/zammad/zammad:${cfg.version}";
-                  command = ["zammad" "run" "websocket"];
-                  env = [
-                    {
-                      name = "POSTGRES_HOST";
-                      value = "postgresql.${namespace}.svc.cluster.local";
-                    }
-                    {
-                      name = "POSTGRES_DB";
-                      value = cfg.database.name;
-                    }
-                    {
-                      name = "POSTGRES_USER";
-                      value = cfg.database.user;
-                    }
-                    {
-                      name = "POSTGRES_PASS";
-                      value = cfg.database.password;
-                    }
-                    {
-                      name = "REDIS_URL";
-                      value = "redis://redis.${namespace}.svc.cluster.local:6379";
-                    }
-                    {
-                      name = "MEMCACHE_SERVERS";
-                      value = "memcached.${namespace}.svc.cluster.local:11211";
-                    }
-                    {
-                      name = "TZ";
-                      value = cfg.timezone;
-                    }
-                  ] ++ lib.optionals cfg.elasticsearch.enabled [
-                    {
-                      name = "ELASTICSEARCH_ENABLED";
-                      value = "true";
-                    }
-                    {
-                      name = "ELASTICSEARCH_HOST";
-                      value = "elasticsearch.${namespace}.svc.cluster.local";
-                    }
-                    {
-                      name = "ELASTICSEARCH_PORT";
-                      value = "9200";
-                    }
-                  ];
-                  ports = [{
-                    containerPort = 6042;
-                  }];
-                  resources = {
-                    requests = {
-                      memory = "256Mi";
-                      cpu = "100m";
+                containers = [
+                  {
+                    name = "zammad-websocket";
+                    image = "ghcr.io/zammad/zammad:${cfg.version}";
+                    command = [
+                      "zammad"
+                      "run"
+                      "websocket"
+                    ];
+                    env = [
+                      {
+                        name = "POSTGRES_HOST";
+                        value = "postgresql.${namespace}.svc.cluster.local";
+                      }
+                      {
+                        name = "POSTGRES_DB";
+                        value = cfg.database.name;
+                      }
+                      {
+                        name = "POSTGRES_USER";
+                        value = cfg.database.user;
+                      }
+                      {
+                        name = "POSTGRES_PASS";
+                        value = cfg.database.password;
+                      }
+                      {
+                        name = "REDIS_URL";
+                        value = "redis://redis.${namespace}.svc.cluster.local:6379";
+                      }
+                      {
+                        name = "MEMCACHE_SERVERS";
+                        value = "memcached.${namespace}.svc.cluster.local:11211";
+                      }
+                      {
+                        name = "TZ";
+                        value = cfg.timezone;
+                      }
+                    ]
+                    ++ lib.optionals cfg.elasticsearch.enabled [
+                      {
+                        name = "ELASTICSEARCH_ENABLED";
+                        value = "true";
+                      }
+                      {
+                        name = "ELASTICSEARCH_HOST";
+                        value = "elasticsearch.${namespace}.svc.cluster.local";
+                      }
+                      {
+                        name = "ELASTICSEARCH_PORT";
+                        value = "9200";
+                      }
+                    ];
+                    ports = [
+                      {
+                        containerPort = 6042;
+                      }
+                    ];
+                    resources = {
+                      requests = {
+                        memory = "256Mi";
+                        cpu = "100m";
+                      };
+                      limits = {
+                        memory = "512Mi";
+                        cpu = "300m";
+                      };
                     };
-                    limits = {
-                      memory = "512Mi";
-                      cpu = "300m";
-                    };
-                  };
-                }];
+                  }
+                ];
               };
             };
           };
@@ -618,10 +694,12 @@ in
               app = "postgresql";
               component = "database";
             };
-            ports = [{
-              port = 5432;
-              targetPort = 5432;
-            }];
+            ports = [
+              {
+                port = 5432;
+                targetPort = 5432;
+              }
+            ];
           };
         };
 
@@ -631,10 +709,12 @@ in
               app = "redis";
               component = "cache";
             };
-            ports = [{
-              port = 6379;
-              targetPort = 6379;
-            }];
+            ports = [
+              {
+                port = 6379;
+                targetPort = 6379;
+              }
+            ];
           };
         };
 
@@ -644,10 +724,12 @@ in
               app = "memcached";
               component = "cache";
             };
-            ports = [{
-              port = 11211;
-              targetPort = 11211;
-            }];
+            ports = [
+              {
+                port = 11211;
+                targetPort = 11211;
+              }
+            ];
           };
         };
 
@@ -657,10 +739,12 @@ in
               app = "elasticsearch";
               component = "search";
             };
-            ports = [{
-              port = 9200;
-              targetPort = 9200;
-            }];
+            ports = [
+              {
+                port = 9200;
+                targetPort = 9200;
+              }
+            ];
           };
         };
 
@@ -670,10 +754,12 @@ in
               app = "zammad";
               component = "railsserver";
             };
-            ports = [{
-              port = 3000;
-              targetPort = 3000;
-            }];
+            ports = [
+              {
+                port = 3000;
+                targetPort = 3000;
+              }
+            ];
           };
         };
 
@@ -683,38 +769,40 @@ in
               app = "zammad";
               component = "websocket";
             };
-            ports = [{
-              port = 6042;
-              targetPort = 6042;
-            }];
+            ports = [
+              {
+                port = 6042;
+                targetPort = 6042;
+              }
+            ];
           };
         };
 
         # PVCs
         persistentVolumeClaims.postgresql-pvc = {
           spec = {
-            accessModes = ["ReadWriteOnce"];
+            accessModes = [ "ReadWriteOnce" ];
             resources.requests.storage = "20Gi";
           };
         };
 
         persistentVolumeClaims.redis-pvc = {
           spec = {
-            accessModes = ["ReadWriteOnce"];
+            accessModes = [ "ReadWriteOnce" ];
             resources.requests.storage = "1Gi";
           };
         };
 
         persistentVolumeClaims.elasticsearch-pvc = lib.mkIf cfg.elasticsearch.enabled {
           spec = {
-            accessModes = ["ReadWriteOnce"];
+            accessModes = [ "ReadWriteOnce" ];
             resources.requests.storage = "10Gi";
           };
         };
 
         persistentVolumeClaims.zammad-storage-pvc = {
           spec = {
-            accessModes = ["ReadWriteOnce"];
+            accessModes = [ "ReadWriteOnce" ];
             resources.requests.storage = "10Gi";
           };
         };
@@ -727,31 +815,35 @@ in
           };
           spec = {
             ingressClassName = "traefik";
-            tls = [{
-              secretName = "zammad-tls";
-              hosts = [cfg.domain];
-            }];
-            rules = [{
-              host = cfg.domain;
-              http.paths = [
-                {
-                  path = "/ws";
-                  pathType = "Prefix";
-                  backend.service = {
-                    name = "zammad-websocket";
-                    port.number = 6042;
-                  };
-                }
-                {
-                  path = "/";
-                  pathType = "Prefix";
-                  backend.service = {
-                    name = "zammad-railsserver";
-                    port.number = 3000;
-                  };
-                }
-              ];
-            }];
+            tls = [
+              {
+                secretName = "zammad-tls";
+                hosts = [ cfg.domain ];
+              }
+            ];
+            rules = [
+              {
+                host = cfg.domain;
+                http.paths = [
+                  {
+                    path = "/ws";
+                    pathType = "Prefix";
+                    backend.service = {
+                      name = "zammad-websocket";
+                      port.number = 6042;
+                    };
+                  }
+                  {
+                    path = "/";
+                    pathType = "Prefix";
+                    backend.service = {
+                      name = "zammad-railsserver";
+                      port.number = 3000;
+                    };
+                  }
+                ];
+              }
+            ];
           };
         };
       };

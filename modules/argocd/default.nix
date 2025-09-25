@@ -4,26 +4,26 @@
   config,
   charts,
   ...
-}: let
+}:
+let
   cfg = config.services.argocd;
   namespace = "argocd";
-  values =
-    lib.attrsets.recursiveUpdate {
-      server.ingress = {
-        inherit (config.networking.traefik) ingressClassName;
-        enabled = true;
-        hostname = "argocd.${config.networking.domain}";
-      };
-      repoServer.dnsConfig.options = [
-        {
-          name = "ndots";
-          value = "1";
-        }
-      ];
-      global.networkPolicy.create = true;
-    }
-    cfg.values;
-in {
+  values = lib.attrsets.recursiveUpdate {
+    server.ingress = {
+      inherit (config.networking.traefik) ingressClassName;
+      enabled = true;
+      hostname = "argocd.${config.networking.domain}";
+    };
+    repoServer.dnsConfig.options = [
+      {
+        name = "ndots";
+        value = "1";
+      }
+    ];
+    global.networkPolicy.create = true;
+  } cfg.values;
+in
+{
   options.services.argocd = with lib; {
     enable = mkOption {
       type = types.bool;
@@ -31,7 +31,7 @@ in {
     };
     values = mkOption {
       type = types.attrsOf types.anything;
-      default = {};
+      default = { };
     };
   };
 
@@ -53,7 +53,7 @@ in {
           };
           spec = {
             podSelector.matchLabels."app.kubernetes.io/name" = "argocd-server";
-            policyTypes = ["Ingress"];
+            policyTypes = [ "Ingress" ];
             ingress = [
               {
                 from = [
@@ -104,7 +104,7 @@ in {
                         }
                       ];
                       rules.dns = [
-                        {matchPattern = "*";}
+                        { matchPattern = "*"; }
                       ];
                     }
                   ];
@@ -112,7 +112,7 @@ in {
                 # Allow HTTPS to github.com
                 {
                   toFQDNs = [
-                    {matchName = "github.com";}
+                    { matchName = "github.com"; }
                   ];
                   toPorts = [
                     {
@@ -141,7 +141,7 @@ in {
               endpointSelector.matchLabels."app.kubernetes.io/part-of" = "argocd";
               egress = [
                 {
-                  toEntities = ["kube-apiserver"];
+                  toEntities = [ "kube-apiserver" ];
                   toPorts = [
                     {
                       ports = [

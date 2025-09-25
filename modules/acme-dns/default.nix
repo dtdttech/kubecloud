@@ -6,30 +6,30 @@ let
   namespace = "acme-dns";
 
   configFile = ''
-[general]
-listen = "0.0.0.0:53"
-protocol = "both"
-domain = "${cfg.domain}"
-nsname = "${cfg.nsname}"
-nsadmin = "${cfg.nsadmin}"
-debug = ${lib.boolToString cfg.debug}
+    [general]
+    listen = "0.0.0.0:53"
+    protocol = "both"
+    domain = "${cfg.domain}"
+    nsname = "${cfg.nsname}"
+    nsadmin = "${cfg.nsadmin}"
+    debug = ${lib.boolToString cfg.debug}
 
-[database]
-engine = "sqlite3"
-connection = "/var/lib/acme-dns/acme-dns.db"
+    [database]
+    engine = "sqlite3"
+    connection = "/var/lib/acme-dns/acme-dns.db"
 
-[api]
-ip = "0.0.0.0"
-port = "80"
-tls = "none"
-disable_registration = ${lib.boolToString cfg.api.disableRegistration}
-corsorigins = ["*"]
-use_header = false
+    [api]
+    ip = "0.0.0.0"
+    port = "80"
+    tls = "none"
+    disable_registration = ${lib.boolToString cfg.api.disableRegistration}
+    corsorigins = ["*"]
+    use_header = false
 
-[logconfig]
-loglevel = "${cfg.logging.level}"
-logtype = "stdout"
-logformat = "${cfg.logging.format}"
+    [logconfig]
+    loglevel = "${cfg.logging.level}"
+    logtype = "stdout"
+    logformat = "${cfg.logging.format}"
   '';
 in
 {
@@ -74,13 +74,21 @@ in
 
     logging = {
       level = mkOption {
-        type = types.enum [ "error" "warning" "info" "debug" ];
+        type = types.enum [
+          "error"
+          "warning"
+          "info"
+          "debug"
+        ];
         default = "info";
         description = "Log level";
       };
 
       format = mkOption {
-        type = types.enum [ "json" "text" ];
+        type = types.enum [
+          "json"
+          "text"
+        ];
         default = "text";
         description = "Log format";
       };
@@ -114,64 +122,66 @@ in
                 component = "server";
               };
               spec = {
-                containers = [{
-                  name = "acme-dns";
-                  image = "joohoi/acme-dns:latest";
-                  ports = [
-                    {
-                      name = "dns-tcp";
-                      containerPort = 53;
-                      protocol = "TCP";
-                    }
-                    {
-                      name = "dns-udp";
-                      containerPort = 53;
-                      protocol = "UDP";
-                    }
-                    {
-                      name = "http";
-                      containerPort = 80;
-                      protocol = "TCP";
-                    }
-                  ];
-                  volumeMounts = [
-                    {
-                      name = "acme-dns-config";
-                      mountPath = "/etc/acme-dns";
-                      readOnly = true;
-                    }
-                    {
-                      name = "acme-dns-data";
-                      mountPath = "/var/lib/acme-dns";
-                    }
-                  ];
-                  resources = {
-                    requests = {
-                      memory = "64Mi";
-                      cpu = "100m";
+                containers = [
+                  {
+                    name = "acme-dns";
+                    image = "joohoi/acme-dns:latest";
+                    ports = [
+                      {
+                        name = "dns-tcp";
+                        containerPort = 53;
+                        protocol = "TCP";
+                      }
+                      {
+                        name = "dns-udp";
+                        containerPort = 53;
+                        protocol = "UDP";
+                      }
+                      {
+                        name = "http";
+                        containerPort = 80;
+                        protocol = "TCP";
+                      }
+                    ];
+                    volumeMounts = [
+                      {
+                        name = "acme-dns-config";
+                        mountPath = "/etc/acme-dns";
+                        readOnly = true;
+                      }
+                      {
+                        name = "acme-dns-data";
+                        mountPath = "/var/lib/acme-dns";
+                      }
+                    ];
+                    resources = {
+                      requests = {
+                        memory = "64Mi";
+                        cpu = "100m";
+                      };
+                      limits = {
+                        memory = "128Mi";
+                        cpu = "200m";
+                      };
                     };
-                    limits = {
-                      memory = "128Mi";
-                      cpu = "200m";
+                    livenessProbe = {
+                      httpGet = {
+                        path = "/health";
+                        port = 80;
+                      };
+                      initialDelaySeconds = 30;
+                      periodSeconds = 30;
                     };
-                  };
-                  livenessProbe = {
-                    httpGet = {
-                      path = "/health";
-                      port = 80;
+                    readinessProbe = {
+                      httpGet = {
+                        path = "/health";
+                        port = 80;
+                      };
+                      initialDelaySeconds = 5;
+                      periodSeconds = 10;
                     };
-                    initialDelaySeconds = 30;
-                    periodSeconds = 30;
-                  };
-                  readinessProbe = {
-                    httpGet = {
-                      path = "/health";
-                      port = 80;
-                    };
-                    initialDelaySeconds = 5;
-                    periodSeconds = 10;
-                  };
-                }];
+                  }
+                ];
                 volumes = [
                   {
                     name = "acme-dns-config";
@@ -219,19 +229,21 @@ in
               app = "acme-dns";
               component = "server";
             };
-            ports = [{
-              name = "http";
-              port = 80;
-              targetPort = 80;
-              protocol = "TCP";
-            }];
+            ports = [
+              {
+                name = "http";
+                port = 80;
+                targetPort = 80;
+                protocol = "TCP";
+              }
+            ];
           };
         };
 
         # PVC for SQLite database
         persistentVolumeClaims.acme-dns-data-pvc = {
           spec = {
-            accessModes = ["ReadWriteOnce"];
+            accessModes = [ "ReadWriteOnce" ];
             resources.requests.storage = "1Gi";
           };
         };
@@ -243,21 +255,27 @@ in
           };
           spec = {
             ingressClassName = "traefik";
-            tls = [{
-              secretName = "acme-dns-tls";
-              hosts = [cfg.domain];
-            }];
-            rules = [{
-              host = cfg.domain;
-              http.paths = [{
-                path = "/";
-                pathType = "Prefix";
-                backend.service = {
-                  name = "acme-dns-api";
-                  port.number = 80;
-                };
-              }];
-            }];
+            tls = [
+              {
+                secretName = "acme-dns-tls";
+                hosts = [ cfg.domain ];
+              }
+            ];
+            rules = [
+              {
+                host = cfg.domain;
+                http.paths = [
+                  {
+                    path = "/";
+                    pathType = "Prefix";
+                    backend.service = {
+                      name = "acme-dns-api";
+                      port.number = 80;
+                    };
+                  }
+                ];
+              }
+            ];
           };
         };
       };
