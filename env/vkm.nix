@@ -19,7 +19,10 @@
   # External DNS configuration for DNS management
   networking.external-dns = {
     enable = true;
-    domainFilters = [ "k.vkm.maschinenbau.tu-darmstadt.de" "vkm.maschinenbau.tu-darmstadt.de" ];
+    domainFilters = [
+      "k.vkm.maschinenbau.tu-darmstadt.de"
+      "vkm.maschinenbau.tu-darmstadt.de"
+    ];
     provider = "coredns";
     values = {
       # External-dns will manage both zones

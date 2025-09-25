@@ -24,7 +24,11 @@ in
     };
 
     provider = mkOption {
-      type = types.enum [ "coredns" "cloudflare" "route53" ];
+      type = types.enum [
+        "coredns"
+        "cloudflare"
+        "route53"
+      ];
       default = "coredns";
       description = "DNS provider for external-dns";
     };
@@ -45,7 +49,10 @@ in
           # External-dns configuration
           provider = cfg.provider;
           domainFilters = cfg.domainFilters;
-          sources = [ "service" "ingress" ];
+          sources = [
+            "service"
+            "ingress"
+          ];
 
           # CoreDNS provider specific configuration
           coredns = {
@@ -114,8 +121,11 @@ in
       resources = {
         networkPolicies.external-dns.spec = {
           podSelector.matchLabels."app.kubernetes.io/name" = "external-dns";
-          policyTypes = [ "Ingress" "Egress" ];
-          
+          policyTypes = [
+            "Ingress"
+            "Egress"
+          ];
+
           # Allow ingress from monitoring
           ingress = [
             {
@@ -139,8 +149,14 @@ in
               toPorts = [
                 {
                   ports = [
-                    { port = "53"; protocol = "UDP"; }
-                    { port = "53"; protocol = "TCP"; }
+                    {
+                      port = "53";
+                      protocol = "UDP";
+                    }
+                    {
+                      port = "53";
+                      protocol = "TCP";
+                    }
                   ];
                   rules.dns = [ { matchPattern = "*"; } ];
                 }

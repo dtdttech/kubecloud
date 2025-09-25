@@ -18,6 +18,7 @@
     ./zammad
     ./cert-manager
     ./nginx
+    ./samba
     # ./ceph-csi  # Moved to ./storage/ceph
   ];
   options = with lib; {
