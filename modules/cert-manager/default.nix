@@ -129,16 +129,16 @@ let
 
   # Create ClusterIssuers based on configuration
   clusterIssuers = lib.mapAttrs' (name: issuer: {
-    name = "clusterIssuers.${name}";
+    name = name;
     value = {
       apiVersion = "cert-manager.io/v1";
       kind = "ClusterIssuer";
       metadata = {
-        inherit name;
-        labels = secretsConfig.commonLabels // {
+        name = name;
+        labels = (secretsConfig.commonLabels or {}) // {
           "app.kubernetes.io/component" = "cluster-issuer";
         };
-        annotations = secretsConfig.commonAnnotations;
+        annotations = secretsConfig.commonAnnotations or {};
       };
       spec = 
         if issuer.type == "acme" then {
@@ -351,7 +351,7 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    nixidy.applicationImports = [ ./generated.nix ];
+    nixidy.applicationImports = [ ];
     
     applications.cert-manager = {
       inherit namespace;
@@ -362,7 +362,7 @@ in {
         chart = charts.jetstack.cert-manager;
       };
 
-      resources = clusterIssuers // {
+      resources = {
         # Network policies for cert-manager
         networkPolicies = lib.mkIf cfg.security.networkPolicies.enabled {
           cert-manager-controller = {
@@ -514,6 +514,9 @@ in {
         };
       };
     };
+
+    # TODO: Create ClusterIssuer resources in the apps section after fixing structure
+    # apps.clusterIssuers = clusterIssuers;
 
     # Add default issuer annotation to ingresses if configured
     # This would typically be done by users in their ingress configurations

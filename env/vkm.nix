@@ -228,21 +228,118 @@
     };
   };
 
-  # support.zammad = {
-  #   enable = true;
-  #   domain = "support.vkm.maschinenbau.tu-darmstadt.de";
-  #   version = "6.5.1";
-  #   timezone = "Europe/Berlin";
-  #   database = {
-  #     name = "zammad_vkm";
-  #     user = "zammad_vkm";
-  #     password = "zammad_vkm_secure123";
-  #   };
-  #   elasticsearch = {
-  #     enabled = true;
-  #     version = "8.19.2";
-  #   };
-  # };
+  # Certificate management for VKM production
+  security.cert-manager = {
+    enable = true;
+    namespace = "cert-manager";
+    
+    clusterIssuers = {
+      # Let's Encrypt staging issuer for testing
+      letsencrypt-staging = {
+        type = "acme";
+        acme = {
+          server = "https://acme-staging-v02.api.letsencrypt.org/directory";
+          email = "admin@vkm.maschinenbau.tu-darmstadt.de";
+          solvers = [
+            {
+              http01 = {
+                ingress = {
+                  class = "traefik";
+                };
+              };
+            }
+          ];
+        };
+      };
+      
+      # Let's Encrypt production issuer for VKM domains
+      letsencrypt-vkm = {
+        type = "acme";
+        acme = {
+          server = "https://acme-v02.api.letsencrypt.org/directory";
+          email = "admin@vkm.maschinenbau.tu-darmstadt.de";
+          solvers = [
+            {
+              http01 = {
+                ingress = {
+                  class = "traefik";
+                };
+              };
+            }
+          ];
+        };
+      };
+      
+      # Self-signed for testing
+      selfsigned-vkm = {
+        type = "selfSigned";
+      };
+    };
+    
+    defaultIssuer = "letsencrypt-staging";  # Use staging for initial testing
+    
+    monitoring = {
+      enabled = true;
+      alerts = {
+        certificateExpiry = true;
+        certificateRenewalFailure = true;
+      };
+    };
+    
+    security = {
+      networkPolicies.enabled = true;
+    };
+    
+    # Enhanced resource limits for production
+    values = {
+      resources = {
+        requests = {
+          cpu = "50m";
+          memory = "64Mi";
+        };
+        limits = {
+          cpu = "200m";
+          memory = "256Mi";
+        };
+      };
+      webhook.resources = {
+        requests = {
+          cpu = "50m";
+          memory = "64Mi";
+        };
+        limits = {
+          cpu = "200m";
+          memory = "256Mi";
+        };
+      };
+      cainjector.resources = {
+        requests = {
+          cpu = "50m";
+          memory = "64Mi";
+        };
+        limits = {
+          cpu = "200m";
+          memory = "256Mi";
+        };
+      };
+    };
+  };
+
+  support.zammad = {
+    enable = true;
+    domain = "support.vkm.maschinenbau.tu-darmstadt.de";
+    version = "6.5.1";
+    timezone = "Europe/Berlin";
+    database = {
+      name = "zammad_vkm";
+      user = "zammad_vkm";
+      password = "zammad_vkm_secure123";
+    };
+    elasticsearch = {
+      enabled = true;
+      version = "8.19.2";
+    };
+  };
 
   # security.passbolt = {
   #   enable = true;
