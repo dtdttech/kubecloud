@@ -86,7 +86,7 @@ in
                 containers = [
                   {
                     name = "mariadb";
-                    image = "mariadb:11.4";
+                    image = "mariadb:10.6.13";
                     env = [
                       {
                         name = "MYSQL_ROOT_PASSWORD";
@@ -103,6 +103,10 @@ in
                       {
                         name = "MYSQL_PASSWORD";
                         value = cfg.database.password;
+                      }
+                      {
+                        name = "TZ";
+                        value = cfg.timezone;
                       }
                     ];
                     ports = [
@@ -159,7 +163,7 @@ in
         persistentVolumeClaims.mariadb-pvc = {
           spec = {
             accessModes = [ "ReadWriteOnce" ];
-            resources.requests.storage = "20Gi";
+            resources.requests.storage = "10Gi";
           };
         };
 
@@ -219,11 +223,19 @@ in
                       }
                       {
                         name = "LB_ENV";
-                        value = cfg.environment;
+                        value = if cfg.environment == "development" then "devel" else "production";
+                      }
+                      {
+                        name = "LB_LOG_FOLDER";
+                        value = "/var/log/librebooking";
                       }
                       {
                         name = "LB_LOG_LEVEL";
-                        value = "info";
+                        value = if cfg.environment == "development" then "debug" else "error";
+                      }
+                      {
+                        name = "LB_LOG_SQL";
+                        value = if cfg.environment == "development" then "true" else "false";
                       }
                       {
                         name = "LB_CRON_ENABLED";
@@ -238,11 +250,15 @@ in
                     volumeMounts = [
                       {
                         name = "librebooking-config";
-                        mountPath = "/opt/librebooking/config";
+                        mountPath = "/config";
                       }
                       {
                         name = "librebooking-uploads";
-                        mountPath = "/opt/librebooking/Web/uploads";
+                        mountPath = "/var/www/html/Web/uploads";
+                      }
+                      {
+                        name = "librebooking-logs";
+                        mountPath = "/var/log/librebooking";
                       }
                     ];
                     resources = {
@@ -282,6 +298,10 @@ in
                     name = "librebooking-uploads";
                     persistentVolumeClaim.claimName = "librebooking-uploads-pvc";
                   }
+                  {
+                    name = "librebooking-logs";
+                    persistentVolumeClaim.claimName = "librebooking-logs-pvc";
+                  }
                 ];
               };
             };
@@ -319,10 +339,18 @@ in
           };
         };
 
+        persistentVolumeClaims.librebooking-logs-pvc = {
+          spec = {
+            accessModes = [ "ReadWriteOnce" ];
+            resources.requests.storage = "2Gi";
+          };
+        };
+
         # Ingress for LibreBooking
         ingresses.librebooking = {
           metadata.annotations = {
             "traefik.ingress.kubernetes.io/router.tls" = "true";
+            "cert-manager.io/cluster-issuer" = "letsencrypt-vkm";
           };
           spec = {
             ingressClassName = "traefik";

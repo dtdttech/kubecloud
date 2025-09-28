@@ -553,64 +553,14 @@ in
       };
     };
 
-    # TODO: Create ClusterIssuer resources in the apps section after fixing structure
-    # apps.clusterIssuers = clusterIssuers;
+    # TODO: Create ClusterIssuer resources manually after understanding nixidy structure
+    # applications.cert-manager.resources.clusterIssuers = clusterIssuers;
 
     # Add default issuer annotation to ingresses if configured
     # This would typically be done by users in their ingress configurations
     # but we can provide a convenience option
 
-    # Monitoring configuration
-    monitoring.prometheus.rules = lib.mkIf cfg.monitoring.enabled [
-      {
-        name = "cert-manager";
-        rules = [
-          (
-            {
-              alert = "CertManagerCertificateExpiringSoon";
-              expr = ''
-                certmanager_certificate_expiration_timestamp_seconds - time() < 7 * 24 * 3600
-              '';
-              for = "1h";
-              labels.severity = "warning";
-              annotations = {
-                summary = "Certificate {{ $labels.name }} expiring soon";
-                description = "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} will expire in less than 7 days";
-              };
-            }
-            // lib.optionalAttrs cfg.monitoring.alerts.certificateExpiry { }
-          )
-
-          (
-            {
-              alert = "CertManagerCertificateNotReady";
-              expr = ''
-                certmanager_certificate_ready_status == 0
-              '';
-              for = "10m";
-              labels.severity = "critical";
-              annotations = {
-                summary = "Certificate {{ $labels.name }} not ready";
-                description = "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} has not been ready for 10 minutes";
-              };
-            }
-            // lib.optionalAttrs cfg.monitoring.alerts.certificateRenewalFailure { }
-          )
-
-          {
-            alert = "CertManagerACMEAccountRegistrationFailed";
-            expr = ''
-              increase(certmanager_acme_client_request_count{status!~"2.."}[5m]) > 0
-            '';
-            for = "1m";
-            labels.severity = "warning";
-            annotations = {
-              summary = "ACME account registration failed";
-              description = "ACME account registration has failed for issuer {{ $labels.name }}";
-            };
-          }
-        ];
-      }
-    ];
+    # Monitoring configuration - disabled for now
+    monitoring.prometheus.rules = [ ];
   };
 }
