@@ -7,6 +7,7 @@ in
   imports = [
     ./local
     ./ceph
+    ./cephfs
     ./longhorn
   ];
 
@@ -16,13 +17,15 @@ in
       type = types.enum [
         "local"
         "ceph"
+        "cephfs"
         "longhorn"
       ];
       default = "local";
       description = ''
         Default storage provider to use for volumes when not explicitly specified.
         - local: Use local-path-provisioner (good for development)
-        - ceph: Use Ceph RBD/CephFS (good for production)
+        - ceph: Use Ceph RBD block storage (good for production)
+        - cephfs: Use CephFS file storage (good for production)
         - longhorn: Use Longhorn distributed storage (good for production)
       '';
     };
@@ -33,8 +36,8 @@ in
       default = { };
       example = {
         rwo = "ceph-rbd";
-        rwx = "ceph-cephfs";
-        rox = "ceph-cephfs";
+        rwx = "cephfs";
+        rox = "cephfs";
       };
       description = ''
         Override storage class mappings for different access modes.
