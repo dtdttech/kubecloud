@@ -30,7 +30,11 @@
         rbd.enable = true;
         cluster = {
           clusterID = "ceph-cluster";
-          monitors = [ "10.0.0.1:6789" "10.0.0.2:6789" "10.0.0.3:6789" ];
+          monitors = [
+            "10.0.0.1:6789"
+            "10.0.0.2:6789"
+            "10.0.0.3:6789"
+          ];
         };
         secrets = {
           userID = "kube";
@@ -43,7 +47,11 @@
         enable = true;
         cluster = {
           clusterID = "ceph-cluster";
-          monitors = [ "10.0.0.1:6789" "10.0.0.2:6789" "10.0.0.3:6789" ];
+          monitors = [
+            "10.0.0.1:6789"
+            "10.0.0.2:6789"
+            "10.0.0.3:6789"
+          ];
         };
         secrets = {
           adminID = "admin";

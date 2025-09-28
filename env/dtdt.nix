@@ -30,7 +30,7 @@
         enable = false; # Disable Ceph
         cluster = {
           clusterID = "ceph-cluster";
-          monitors = [];
+          monitors = [ ];
         };
       };
       cephfs.enable = false; # Disable CephFS
