@@ -368,29 +368,29 @@ in
         };
       };
 
-      # Create Kubernetes secret for CephFS
-      resources.kubernetesSecrets.cephfs-secret = {
-        metadata.name = "cephfs-secret";
-        metadata.namespace = namespace;
-        stringData =
-          if cfg.sops.enable then
-            let
-              sopsData = decryptSOPS cfg.sops.secretsFile cfg.sops.secretsPath;
-            in
-            {
-              adminID = sopsData.adminID;
-              adminKey = sopsData.adminKey;
-              userID = sopsData.adminID;
-              userKey = sopsData.adminKey;
-            }
-          else
-            {
-              adminID = cfg.secrets.adminID;
-              adminKey = cfg.secrets.adminKey;
-              userID = cfg.secrets.adminID;
-              userKey = cfg.secrets.adminKey;
-            };
-      };
+      # TODO: Fix Kubernetes secrets configuration
+      # resources.kubernetesSecrets.cephfs-secret = {
+      #   metadata.name = "cephfs-secret";
+      #   metadata.namespace = namespace;
+      #   stringData =
+      #     if cfg.sops.enable then
+      #       let
+      #         sopsData = decryptSOPS cfg.sops.secretsFile cfg.sops.secretsPath;
+      #       in
+      #       {
+      #         adminID = sopsData.adminID;
+      #         adminKey = sopsData.adminKey;
+      #         userID = sopsData.adminID;
+      #         userKey = sopsData.adminKey;
+      #       }
+      #     else
+      #       {
+      #         adminID = cfg.secrets.adminID;
+      #         adminKey = cfg.secrets.adminKey;
+      #         userID = cfg.secrets.adminID;
+      #         userKey = cfg.secrets.adminKey;
+      #       };
+      # };
 
       # Network policies for security
       resources.networkPolicies.cephfs-csi.spec = {

@@ -164,7 +164,7 @@ in
 
       helm.releases.samba = {
         inherit values;
-        chart = charts.samba.samba;
+        chart = builtins.throw "Samba chart not configured";
       };
 
       resources = {

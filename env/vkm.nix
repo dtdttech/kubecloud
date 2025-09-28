@@ -21,14 +21,12 @@
     enable = true;
     domainFilters = [
       "kube.vkm.maschinenbau.tu-darmstadt.de"
-      "k.vkm.maschinenbau.tu-darmstadt.de"
-      "vkm.maschinenbau.tu-darmstadt.de"
     ];
     provider = "coredns";
     values = {
-      # External-dns will manage both zones
+      # External-dns will manage the kube subdomain
       coredns = {
-        # Let external-dns manage records in CoreDNS for both zones
+        # Let external-dns manage records in CoreDNS for the kube subdomain
       };
     };
   };
@@ -489,6 +487,9 @@
   #     };
   #   };
   # };
+
+  # Disable samba service (not needed for DNS management)
+  services.samba.enable = false;
 
   # nginx configurations for VKM university environment
   # webservers.nginx.deployments = {

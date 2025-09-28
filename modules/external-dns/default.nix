@@ -94,8 +94,10 @@ in
           };
 
           # Security context
-          securityContext = {
+          podSecurityContext = {
             fsGroup = 65534;
+          };
+          securityContext = {
             runAsUser = 65534;
             runAsNonRoot = true;
             readOnlyRootFilesystem = true;
@@ -146,29 +148,33 @@ in
           # Allow egress to DNS servers and Kubernetes API
           egress = [
             {
-              toPorts = [
+              ports = [
                 {
-                  ports = [
-                    {
-                      port = "53";
-                      protocol = "UDP";
-                    }
-                    {
-                      port = "53";
-                      protocol = "TCP";
-                    }
-                  ];
-                  rules.dns = [ { matchPattern = "*"; } ];
+                  port = 53;
+                  protocol = "UDP";
+                }
+                {
+                  port = 53;
+                  protocol = "TCP";
                 }
               ];
             }
             {
-              toEndpoints = [
+              to = [
                 {
-                  matchLabels = {
-                    "k8s:io.kubernetes.pod.namespace" = "kube-system";
-                    "k8s:k8s-app" = "kube-dns";
+                  namespaceSelector = {
+                    matchLabels."kubernetes.io/metadata.name" = "kube-system";
                   };
+                }
+              ];
+              ports = [
+                {
+                  port = 53;
+                  protocol = "UDP";
+                }
+                {
+                  port = 53;
+                  protocol = "TCP";
                 }
               ];
             }
