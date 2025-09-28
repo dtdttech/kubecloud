@@ -116,6 +116,12 @@ in
           default = "kube-data-fs";
           description = "CephFS filesystem name";
         };
+
+        volumeBindingMode = mkOption {
+          type = types.str;
+          default = "Immediate";
+          description = "Volume binding mode for CephFS volumes";
+        };
       };
     };
 
@@ -171,6 +177,79 @@ in
         description = "Ceph admin key for CSI operations";
       };
     };
+
+    metrics = {
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable metrics collection";
+      };
+      port = mkOption {
+        type = types.int;
+        default = 8080;
+        description = "Port for metrics endpoint";
+      };
+    };
+
+    topology = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable topology awareness";
+      };
+      domainLabels = mkOption {
+        type = types.listOf types.str;
+        default = [ "kubernetes.io/hostname" ];
+        description = "Domain labels for topology";
+      };
+    };
+
+    deployment = {
+      replicaCount = mkOption {
+        type = types.int;
+        default = 3;
+        description = "Number of replicas for CSI deployments";
+      };
+
+      resources = {
+        requests = {
+          memory = mkOption {
+            type = types.str;
+            default = "128Mi";
+            description = "Memory request for CSI pods";
+          };
+          cpu = mkOption {
+            type = types.str;
+            default = "100m";
+            description = "CPU request for CSI pods";
+          };
+        };
+        limits = {
+          memory = mkOption {
+            type = types.str;
+            default = "512Mi";
+            description = "Memory limit for CSI pods";
+          };
+          cpu = mkOption {
+            type = types.str;
+            default = "500m";
+            description = "CPU limit for CSI pods";
+          };
+        };
+      };
+
+      affinity = mkOption {
+        type = types.attrs;
+        default = { };
+        description = "Affinity rules for CSI pods";
+      };
+
+      tolerations = mkOption {
+        type = types.listOf types.attrs;
+        default = [ ];
+        description = "Tolerations for CSI pods";
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -182,7 +261,7 @@ in
       helm.releases = {
         # RBD CSI Driver
         ceph-csi-rbd = lib.mkIf cfg.rbd.enable {
-          chart = "${../../../charts/ceph-csi-rbd}";
+          chart = charts.ceph-csi-rbd;
 
           values = {
             # Basic configuration
@@ -260,7 +339,7 @@ in
 
         # CephFS CSI Driver
         ceph-csi-cephfs = lib.mkIf cfg.cephfs.enable {
-          chart = "${../../../charts/ceph-csi-cephfs}";
+          chart = charts.ceph-csi-cephfs;
 
           values = {
             # Basic configuration

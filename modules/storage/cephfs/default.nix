@@ -27,7 +27,7 @@ let
     in
     content;
 
-  cfg = config.storage.providers.cephfs;
+  cfg = config.storage.providers.ceph;
 
   namespace = "cephfs-csi-system";
 in
@@ -114,7 +114,7 @@ in
 
       monitors = mkOption {
         type = types.listOf types.str;
-        default = [];
+        default = [ ];
         description = "List of Ceph monitor addresses";
       };
     };
@@ -187,13 +187,13 @@ in
 
       affinity = mkOption {
         type = types.attrs;
-        default = {};
+        default = { };
         description = "Affinity rules for CSI pods";
       };
 
       tolerations = mkOption {
         type = types.listOf types.attrs;
-        default = [];
+        default = [ ];
         description = "Tolerations for CSI pods";
       };
     };
@@ -231,7 +231,7 @@ in
       createNamespace = true;
 
       helm.releases.cephfs-csi = {
-        chart = "${../../../../charts/cephfs-csi}";
+        chart = charts.ceph-csi-cephfs;
 
         values = {
           # Basic configuration
@@ -259,7 +259,7 @@ in
             else
               [
                 {
-                  clusterID = cfg.cluster.id;
+                  clusterID = cfg.cluster.clusterID;
                   monitors = cfg.cluster.monitors;
                 }
               ];
@@ -302,14 +302,14 @@ in
           # StorageClass configuration
           storageClass = {
             create = true;
-            name = cfg.storageClass.name;
-            reclaimPolicy = cfg.storageClass.reclaimPolicy;
-            allowVolumeExpansion = cfg.storageClass.allowVolumeExpansion;
-            volumeBindingMode = cfg.storageClass.volumeBindingMode;
-            parameters = cfg.storageClass.parameters // {
-              "fsName" = cfg.filesystem.name;
-              "pool" = cfg.filesystem.dataPool;
-              "clusterID" = cfg.cluster.id;
+            name = cfg.cephfs.storageClass.name;
+            reclaimPolicy = cfg.cephfs.storageClass.reclaimPolicy;
+            allowVolumeExpansion = cfg.cephfs.storageClass.allowVolumeExpansion;
+            volumeBindingMode = cfg.cephfs.storageClass.volumeBindingMode;
+            parameters = {
+              "fsName" = cfg.cephfs.storageClass.fsName;
+              "pool" = cfg.cephfs.storageClass.pool;
+              "clusterID" = cfg.cluster.clusterID;
             };
           };
 
@@ -395,7 +395,10 @@ in
       # Network policies for security
       resources.networkPolicies.cephfs-csi.spec = {
         podSelector.matchLabels."app" = "cephfs-csi";
-        policyTypes = [ "Ingress" "Egress" ];
+        policyTypes = [
+          "Ingress"
+          "Egress"
+        ];
         ingress = [
           {
             from = [

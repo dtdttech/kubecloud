@@ -15,6 +15,44 @@
 
   networking.domain = "cdbrdr.com";
 
+  # Storage configuration for production environment
+  storage = {
+    defaultProvider = "ceph";
+    storageClasses = {
+      rwo = "ceph-rbd";
+      rwx = "cephfs";
+      rox = "ceph-rbd";
+    };
+    providers = {
+      local.enable = false; # Disable local storage
+      ceph = {
+        enable = true;
+        rbd.enable = true;
+        cluster = {
+          clusterID = "ceph-cluster";
+          monitors = [ "10.0.0.1:6789" "10.0.0.2:6789" "10.0.0.3:6789" ];
+        };
+        secrets = {
+          userID = "kube";
+          userKey = "AQATGHdWmD5KHhAAiB1wzY5z3L8YQd8v5xJ5kQ==";
+          adminID = "admin";
+          adminKey = "AQATGHdWmD5KHhAAiB1wzY5z3L8YQd8v5xJ5kQ==";
+        };
+      };
+      cephfs = {
+        enable = true;
+        cluster = {
+          clusterID = "ceph-cluster";
+          monitors = [ "10.0.0.1:6789" "10.0.0.2:6789" "10.0.0.3:6789" ];
+        };
+        secrets = {
+          adminID = "admin";
+          adminKey = "AQATGHdWmD5KHhAAiB1wzY5z3L8YQd8v5xJ5kQ==";
+        };
+      };
+    };
+  };
+
   # Secrets configuration for production environment
   secrets = {
     defaultProvider = "external"; # Use external secrets for production

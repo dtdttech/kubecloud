@@ -26,7 +26,13 @@
     };
     providers = {
       local.enable = false; # Disable local storage
-      ceph.enable = false; # Disable Ceph
+      ceph = {
+        enable = false; # Disable Ceph
+        cluster = {
+          clusterID = "ceph-cluster";
+          monitors = [];
+        };
+      };
       cephfs.enable = false; # Disable CephFS
       longhorn = {
         enable = true;

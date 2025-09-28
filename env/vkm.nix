@@ -20,6 +20,7 @@
   networking.external-dns = {
     enable = true;
     domainFilters = [
+      "kube.vkm.maschinenbau.tu-darmstadt.de"
       "k.vkm.maschinenbau.tu-darmstadt.de"
       "vkm.maschinenbau.tu-darmstadt.de"
     ];
