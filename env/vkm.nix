@@ -22,11 +22,11 @@
     domainFilters = [
       "kube.vkm.maschinenbau.tu-darmstadt.de"
     ];
-    provider = "coredns";
+    provider = "primary";
     values = {
-      # External-dns will manage the kube subdomain
-      coredns = {
-        # Let external-dns manage records in CoreDNS for the kube subdomain
+      # Primary provider configuration
+      primary = {
+        # Configure primary provider settings
       };
     };
   };
@@ -87,16 +87,42 @@
 
   # Monitoring configuration for VKM
   monitoring = {
-    # Temporarily disable monitoring components until Prometheus CRDs are installed
-    prometheus = {
-      enable = false;
-    };
+    # Enable Grafana with external access
     grafana = {
+      enable = true;
+      domain = "grafana.kube.vkm";
+      namespace = "monitoring";
+      # Admin credentials (consider using external secrets in production)
+      admin = {
+        user = "admin";
+        password = "grafana_vkm_secure123";
+      };
+      # Storage configuration
+      storage = {
+        enabled = true;
+        size = "10Gi";
+        className = "ceph-rbd";
+      };
+      # Ingress configuration
+      ingress = {
+        enabled = true;
+        className = "traefik";
+        annotations = {
+          "cert-manager.io/cluster-issuer" = "letsencrypt-vkm";
+          "traefik.ingress.kubernetes.io/router.middlewares" = "default-headers@kubernetescrd";
+        };
+        tls = {
+          enabled = true;
+          secretName = "grafana-tls";
+        };
+      };
+    };
+    # Temporarily disable Prometheus until CRDs are properly installed
+    prometheus = {
       enable = false;
     };
   };
 
-  
   support.zammad = {
     enable = true;
     domain = "support.k.vkm.maschinenbau.tu-darmstadt.de";
@@ -232,4 +258,60 @@
 
   # Disable samba service (not needed for DNS management)
   services.samba.enable = false;
+
+  # Seafile document management system (will be deployed manually)
+  # documentManagement.seafile = {
+  #   enable = true;
+  #   domain = "seafile.kube.vkm";
+  #   timezone = "Europe/Berlin";
+
+  #   # Admin configuration
+  #   admin = {
+  #     email = "admin@vkm.maschinenbau.tu-darmstadt.de";
+  #     password = "seafile_vkm_admin123";
+  #   };
+
+  #   # Database configuration
+  #   database = {
+  #     name = "seafile_vkm";
+  #     user = "seafile_vkm";
+  #     password = "seafile_vkm_db123";
+  #     rootPassword = "seafile_vkm_root123";
+  #     storage = {
+  #       size = "20Gi";
+  #       className = "ceph-rbd";
+  #     };
+  #   };
+
+  #   # Storage configuration for Seafile data
+  #   storage = {
+  #     data = {
+  #       size = "200Gi";
+  #       className = "ceph-rbd";
+  #     };
+  #   };
+
+  #   # Email configuration (can be configured later)
+  #   email = {
+  #     smtpHost = "";
+  #     smtpPort = 587;
+  #     smtpUser = "";
+  #     smtpPassword = "";
+  #     fromEmail = "noreply@vkm.maschinenbau.tu-darmstadt.de";
+  #   };
+
+  #   # Ingress configuration with SSL
+  #   ingress = {
+  #     enabled = true;
+  #     className = "traefik";
+  #     annotations = {
+  #       "cert-manager.io/cluster-issuer" = "letsencrypt-vkm";
+  #       "traefik.ingress.kubernetes.io/router.middlewares" = "default-headers@kubernetescrd";
+  #     };
+  #     tls = {
+  #       enabled = true;
+  #       secretName = "seafile-tls";
+  #     };
+  #   };
+  # };
 }

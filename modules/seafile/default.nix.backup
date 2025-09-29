@@ -1,0 +1,362 @@
+{ lib, config, ... }:
+
+let
+  cfg = config.documentManagement.seafile;
+
+  namespace = "seafile";
+
+  values = lib.attrsets.recursiveUpdate {
+    # Seafile server configuration
+    image = {
+      repository = "docker.seadrive.org/seafileltd/seafile-pro-mc";
+      tag = "11.0-latest";
+      pullPolicy = "IfNotPresent";
+    };
+
+    # MariaDB configuration
+    mariadb = {
+      enabled = true;
+      image = {
+        repository = "mariadb";
+        tag = "10.11";
+        pullPolicy = "IfNotPresent";
+      };
+      rootPassword = cfg.database.rootPassword;
+      database = cfg.database.name;
+      user = cfg.database.user;
+      password = cfg.database.password;
+      persistence = {
+        enabled = true;
+        size = cfg.database.storage.size;
+        storageClass = lib.optionalString (cfg.database.storage.className != "") cfg.database.storage.className;
+      };
+    };
+
+    # Memcached configuration
+    memcached = {
+      enabled = true;
+      image = {
+        repository = "memcached";
+        tag = "1.6-alpine";
+        pullPolicy = "IfNotPresent";
+      };
+    };
+
+    # Seafile configuration
+    seafile = {
+      serverHost = cfg.domain;
+      serverPort = 80;
+      adminEmail = cfg.admin.email;
+      adminPassword = cfg.admin.password;
+      initAdmin = true;
+      timeZone = cfg.timezone;
+      
+      # Seafile settings
+      settings = {
+        FILE_SERVER_ROOT = "https://${cfg.domain}";
+        SERVICE_URL = "https://${cfg.domain}";
+        DATABASE_TYPE = "mysql";
+        MYSQL_HOST = "mariadb";
+        MYSQL_PORT = 3306;
+        MYSQL_USER = cfg.database.user;
+        MYSQL_PASSWORD = cfg.database.password;
+        MYSQL_DB_NAME = cfg.database.name;
+        MEMCACHED_HOST = "memcached:11211";
+        
+        # Email settings (optional)
+        EMAIL_USE_TLS = true;
+        EMAIL_HOST = cfg.email.smtpHost;
+        EMAIL_HOST_USER = cfg.email.smtpUser;
+        EMAIL_HOST_PASSWORD = cfg.email.smtpPassword;
+        EMAIL_PORT = cfg.email.smtpPort;
+        DEFAULT_FROM_EMAIL = cfg.email.fromEmail;
+      };
+    };
+
+    # Persistence configuration
+    persistence = {
+      enabled = true;
+      seafileData = {
+        enabled = true;
+        size = cfg.storage.data.size;
+        storageClass = lib.optionalString (cfg.storage.data.className != "") cfg.storage.data.className;
+        path = "/opt/seafile-data";
+      };
+      seafileMysql = {
+        enabled = cfg.mariadb.enabled;
+        size = cfg.database.storage.size;
+        storageClass = lib.optionalString (cfg.database.storage.className != "") cfg.database.storage.className;
+        path = "/opt/seafile-mysql";
+      };
+    };
+
+    # Service configuration
+    service = {
+      type = "ClusterIP";
+      port = 80;
+    };
+
+    # Ingress configuration
+    ingress = lib.mkIf cfg.ingress.enabled {
+      enabled = true;
+      className = cfg.ingress.className;
+      annotations = cfg.ingress.annotations;
+      hosts = [ cfg.domain ];
+      tls = lib.optional cfg.ingress.tls.enabled [{
+        secretName = cfg.ingress.tls.secretName;
+        hosts = [ cfg.domain ];
+      }];
+    };
+
+    # Resource limits
+    resources = {
+      limits = {
+        cpu = "1000m";
+        memory = "2Gi";
+      };
+      requests = {
+        cpu = "500m";
+        memory = "1Gi";
+      };
+    };
+
+    # Node selectors and tolerations
+    nodeSelector = { };
+    tolerations = [ ];
+  } cfg.values;
+in
+{
+  options.documentManagement.seafile = with lib; {
+    enable = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Enable Seafile service";
+    };
+
+    domain = mkOption {
+      type = types.str;
+      default = "seafile.kube.vkm";
+      description = "Domain for Seafile access";
+    };
+
+    namespace = mkOption {
+      type = types.str;
+      default = "seafile";
+      description = "Namespace for Seafile deployment";
+    };
+
+    timezone = mkOption {
+      type = types.str;
+      default = "Europe/Berlin";
+      description = "Timezone for Seafile";
+    };
+
+    admin = mkOption {
+      type = types.submodule {
+        options = {
+          email = mkOption {
+            type = types.str;
+            default = "admin@vkm.maschinenbau.tu-darmstadt.de";
+            description = "Admin email address";
+          };
+          password = mkOption {
+            type = types.str;
+            default = "seafile_vkm_admin123";
+            description = "Admin password";
+          };
+        };
+      };
+      default = { };
+      description = "Admin configuration";
+    };
+
+    database = mkOption {
+      type = types.submodule {
+        options = {
+          name = mkOption {
+            type = types.str;
+            default = "seafile";
+            description = "Database name";
+          };
+          user = mkOption {
+            type = types.str;
+            default = "seafile";
+            description = "Database user";
+          };
+          password = mkOption {
+            type = types.str;
+            default = "seafile_vkm_db123";
+            description = "Database password";
+          };
+          rootPassword = mkOption {
+            type = types.str;
+            default = "seafile_vkm_root123";
+            description = "Database root password";
+          };
+          storage = mkOption {
+            type = types.submodule {
+              options = {
+                size = mkOption {
+                  type = types.str;
+                  default = "20Gi";
+                  description = "Database storage size";
+                };
+                className = mkOption {
+                  type = types.str;
+                  default = "ceph-rbd";
+                  description = "Storage class name";
+                };
+              };
+            };
+            default = { };
+            description = "Database storage configuration";
+          };
+        };
+      };
+      default = { };
+      description = "Database configuration";
+    };
+
+    mariadb = mkOption {
+      type = types.submodule {
+        options = {
+          enabled = mkOption {
+            type = types.bool;
+            default = true;
+            description = "Enable embedded MariaDB";
+          };
+        };
+      };
+      default = { };
+      description = "MariaDB configuration";
+    };
+
+    storage = mkOption {
+      type = types.submodule {
+        options = {
+          data = mkOption {
+            type = types.submodule {
+              options = {
+                size = mkOption {
+                  type = types.str;
+                  default = "100Gi";
+                  description = "Seafile data storage size";
+                };
+                className = mkOption {
+                  type = types.str;
+                  default = "ceph-rbd";
+                  description = "Storage class name";
+                };
+              };
+            };
+            default = { };
+            description = "Data storage configuration";
+          };
+        };
+      };
+      default = { };
+      description = "Storage configuration";
+    };
+
+    email = mkOption {
+      type = types.submodule {
+        options = {
+          smtpHost = mkOption {
+            type = types.str;
+            default = "";
+            description = "SMTP server host";
+          };
+          smtpPort = mkOption {
+            type = types.int;
+            default = 587;
+            description = "SMTP server port";
+          };
+          smtpUser = mkOption {
+            type = types.str;
+            default = "";
+            description = "SMTP username";
+          };
+          smtpPassword = mkOption {
+            type = types.str;
+            default = "";
+            description = "SMTP password";
+          };
+          fromEmail = mkOption {
+            type = types.str;
+            default = "noreply@vkm.maschinenbau.tu-darmstadt.de";
+            description = "From email address";
+          };
+        };
+      };
+      default = { };
+      description = "Email configuration";
+    };
+
+    ingress = mkOption {
+      type = types.submodule {
+        options = {
+          enabled = mkOption {
+            type = types.bool;
+            default = true;
+            description = "Enable ingress";
+          };
+          className = mkOption {
+            type = types.str;
+            default = "traefik";
+            description = "Ingress class";
+          };
+          annotations = mkOption {
+            type = types.attrsOf types.str;
+            default = {
+              "cert-manager.io/cluster-issuer" = "letsencrypt-vkm";
+              "traefik.ingress.kubernetes.io/router.middlewares" = "default-headers@kubernetescrd";
+            };
+            description = "Ingress annotations";
+          };
+          tls = mkOption {
+            type = types.submodule {
+              options = {
+                enabled = mkOption {
+                  type = types.bool;
+                  default = true;
+                  description = "Enable TLS";
+                };
+                secretName = mkOption {
+                  type = types.str;
+                  default = "seafile-tls";
+                  description = "TLS secret name";
+                };
+              };
+            };
+            default = { };
+            description = "TLS configuration";
+          };
+        };
+      };
+      default = { };
+      description = "Ingress configuration";
+    };
+
+    values = mkOption {
+      type = types.attrsOf types.anything;
+      default = { };
+      description = "Extra Helm values for Seafile";
+    };
+  };
+
+  config = lib.mkIf cfg.enable {
+    applications.seafile = {
+      inherit namespace;
+      createNamespace = true;
+
+      helm.releases.seafile = {
+        chart = {
+          repository = "https://charts.seafile.com";
+          name = "seafile";
+          version = "2.0.0";
+        };
+        inherit values;
+      };
+    };
+  };
+}

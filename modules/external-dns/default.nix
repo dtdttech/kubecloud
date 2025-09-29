@@ -25,11 +25,12 @@ in
 
     provider = mkOption {
       type = types.enum [
+        "primary"
         "coredns"
         "cloudflare"
         "route53"
       ];
-      default = "coredns";
+      default = "primary";
       description = "DNS provider for external-dns";
     };
 
@@ -54,10 +55,10 @@ in
             "ingress"
           ];
 
-          # CoreDNS provider specific configuration
-          coredns = {
-            # When using CoreDNS as provider, external-dns creates records in CoreDNS
-            # and CoreDNS serves them directly
+          # Primary provider specific configuration
+          primary = {
+            # Primary provider creates DNS records using the configured DNS provider
+            # This works with your existing DNS delegation setup
           };
 
           # Policy for how to handle DNS records

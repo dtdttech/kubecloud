@@ -1,0 +1,31 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-vkm
+  labels:
+    app.kubernetes.io/component: "cluster-issuer"
+    environment: "vkm-production"
+    managed-by: "kubecloud"
+    organization: "tu-darmstadt"
+    department: "vkm"
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@vkm.maschinenbau.tu-darmstadt.de
+    privateKeySecretRef:
+      name: letsencrypt-vkm-private-key
+    solvers:
+    - http01:
+        ingress:
+          class: traefik
+    - dns01:
+        acmedns:
+          host: https://dns.kube.vkm.maschinenbau.tu-darmstadt.de
+          accountSecretRef:
+            name: acme-dns-account
+            key: acmedns.json
+        selector:
+          dnsZones:
+          - "vkm.maschinenbau.tu-darmstadt.de"

@@ -7,7 +7,7 @@ set -e
 # Configuration
 SOURCE_DIR="result"
 TARGET_REPO_DIR="kubevkm_rendered"
-TARGET_REPO_URL="https://github.com/dtdttech/kubevkm_rendered.git"
+TARGET_REPO_URL="git@github.com:dtdttech/kubevkm_rendered.git"
 ARGOCD_APP_NAME="deployment"
 KUBECONFIG_FILE="kubeconfig"
 
@@ -95,7 +95,7 @@ else
     fi
     
     # Try pushing to main first, then master if that fails
-    if git push origin "$DEFAULT_BRANCH" 2>/dev/null || git push origin main 2>/dev/null || git push origin master 2>/dev/null; then
+    if git push --force origin "$DEFAULT_BRANCH" 2>/dev/null || git push --force origin master 2>/dev/null; then
         print_success "Changes pushed successfully"
     else
         print_error "Failed to push to remote repository"
