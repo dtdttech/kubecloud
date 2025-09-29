@@ -28,8 +28,8 @@ let
       # Application settings
       secretKey = "change-this-secret-key";
       allowedHosts = [ "paperless.local" ];
-      corsAllowedHosts = [ "http://localhost:8000"];
-      
+      corsAllowedHosts = [ "http://localhost:8000" ];
+
       # Timezone
       timezone = "UTC";
 
@@ -71,7 +71,7 @@ let
       storageClass = "";
       accessMode = "ReadWriteOnce";
       size = "10Gi";
-      
+
       # Media storage
       media = {
         enabled = true;
