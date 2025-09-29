@@ -9,20 +9,17 @@ on:
 
 jobs:
   build-vkm:
-    runs-on: ubuntu-latest
+    runs-on: nixery.dev/shell/git
     steps:
     - name: Checkout source repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - name: Install Nix
-      uses: cachix/install-nix-action@v31
-      with:
-        extra_nix_config: |
-          extra-experimental-features = nix-command flakes
-          access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-
+    - name: Enable Nix Flakes
+      run: |
+        echo 'experimental-features = nix-command flakes' | sudo tee -a /etc/nix/nix.conf
+        sudo nix-channel --update
     
     - name: Build VKM profile with Nixidy
       uses: arnarg/nixidy/actions/build@main
@@ -30,34 +27,63 @@ jobs:
       with:
         environment: .#vkm
 
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: vkm-build
+        path: ${{ steps.build.outputs.out-path }}
+
+  deploy-vkm:
+    needs: build-vkm
+    runs-on: nixery.dev/shell/git
+    steps:
+    - name: Enable Nix Flakes
+      run: |
+        echo 'experimental-features = nix-command flakes' | sudo tee -a /etc/nix/nix.conf
+        sudo nix-channel --update
+    
+    - name: Install rsync
+      run: nix-shell -p rsync --run "echo rsync installed"
+
     - name: Checkout target repository
       uses: actions/checkout@v4
       with:
         repository: dtdttech/kubevkm_rendered
         token: ${{ secrets.RENDERED_REPO_TOKEN }}
         path: kubevkm_rendered
+        ref: master  # Explicitly checkout master branch
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: vkm-build
+        path: build-output
 
     - name: Copy build results
       run: |
-        rsync --recursive --delete '${{steps.build.outputs.out-path}}/' kubevkm_rendered/
+        rsync --recursive --delete build-output/ kubevkm_rendered/
 
     - name: Configure Git
       run: |
         cd kubevkm_rendered
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
+        git config user.name "github-actions"
+        git config user.email "github-actions@github.com"
 
-    - name: Commit and push changes
+    - name: Commit changes
       run: |
         cd kubevkm_rendered
         git add .
-        if git diff --staged --quiet; then
-          echo "No changes to commit"
-        else
-          git commit -m "Update VKM rendered configuration
+        git commit -m "chore: promote to dev ${{github.sha}}"
+        git push origin HEAD:promote/env/dev --force-with-lease
 
-        🤖 Generated with [Claude Code](https://claude.ai/code)
-
-        Co-Authored-By: GitHub Action <action@github.com>"
-          git push origin master
-        fi
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.RENDERED_REPO_TOKEN }}
+        head: promote/env/dev
+        base: master
+        title: "chore: promote to dev ${{github.sha}}"
+        body: |
+          Automated deployment from commit ${{github.sha}}
+          
+          This PR was created automatically by the VKM build workflow.
