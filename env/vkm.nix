@@ -26,19 +26,22 @@
     values = {
       # Policy for how to handle DNS records
       policy = "sync";
-      
+
       # Interval for checking DNS changes
       interval = "1m";
-      
+
       # Sources to monitor
-      sources = [ "service" "ingress" ];
-      
+      sources = [
+        "service"
+        "ingress"
+      ];
+
       # Don't process annotations on the same resource more than once
       txtOwnerId = "external-dns";
-      
+
       # Log level for debugging
       logLevel = "debug";
-      
+
       # Run in dry-run mode initially for testing
       dryRun = false;
     };
