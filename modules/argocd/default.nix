@@ -10,7 +10,7 @@ let
   namespace = "argocd";
   values = lib.attrsets.recursiveUpdate {
     server.ingress = {
-      inherit (config.networking.traefik) ingressClassName;
+      inherit (config.networking.nginx-ingress) ingressClassName;
       enabled = true;
       hostname = "argocd.${config.networking.domain}";
     };
@@ -43,12 +43,12 @@ in
         chart = charts.argoproj.argo-cd;
       };
       resources = {
-        # Allow ingress traffic from traefik to argocd-server.
-        networkPolicies.allow-traefik-ingress = {
+        # Allow ingress traffic from nginx to argocd-server.
+        networkPolicies.allow-nginx-ingress = {
           apiVersion = "networking.k8s.io/v1";
           kind = "NetworkPolicy";
           metadata = {
-            name = "allow-traefik-ingress";
+            name = "allow-nginx-ingress";
             namespace = namespace;
           };
           spec = {
@@ -58,8 +58,8 @@ in
               {
                 from = [
                   {
-                    namespaceSelector.matchLabels."kubernetes.io/metadata.name" = "traefik";
-                    podSelector.matchLabels."app.kubernetes.io/name" = "traefik";
+                    namespaceSelector.matchLabels."kubernetes.io/metadata.name" = "ingress-nginx";
+                    podSelector.matchLabels."app.kubernetes.io/name" = "ingress-nginx";
                   }
                 ];
                 ports = [

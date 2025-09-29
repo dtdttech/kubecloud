@@ -339,11 +339,11 @@ let
           ingresses = lib.optionalAttrs (nginxConfig.ingress.enable or false) {
             "${name}" = {
               metadata.annotations = {
-                "traefik.ingress.kubernetes.io/router.tls" = toString (nginxConfig.ingress.tls or true);
+                "nginx.ingress.kubernetes.io/ssl-redirect" = toString (nginxConfig.ingress.tls or true);
               }
               // (nginxConfig.ingress.annotations or { });
               spec = {
-                ingressClassName = nginxConfig.ingress.className or "traefik";
+                ingressClassName = nginxConfig.ingress.className or "nginx";
                 tls = lib.optional (nginxConfig.ingress.tls or true) {
                   secretName = "${name}-tls";
                   hosts = [ nginxConfig.ingress.host ];
@@ -657,7 +657,7 @@ in
 
               className = mkOption {
                 type = types.str;
-                default = "traefik";
+                default = "nginx";
                 description = "Ingress class name";
               };
 

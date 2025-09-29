@@ -287,10 +287,11 @@ in
         # Ingress for Passbolt
         ingresses.passbolt = {
           metadata.annotations = {
-            "traefik.ingress.kubernetes.io/router.tls" = "true";
+            "nginx.ingress.kubernetes.io/ssl-redirect" = "true";
+            "nginx.ingress.kubernetes.io/force-ssl-redirect" = "true";
           };
           spec = {
-            ingressClassName = "traefik";
+            ingressClassName = "nginx";
             tls = [
               {
                 secretName = "passbolt-tls";

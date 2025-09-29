@@ -810,11 +810,12 @@ in
         # Ingress
         ingresses.zammad = {
           metadata.annotations = {
-            "traefik.ingress.kubernetes.io/router.tls" = "true";
+            "nginx.ingress.kubernetes.io/ssl-redirect" = "true";
+            "nginx.ingress.kubernetes.io/force-ssl-redirect" = "true";
             "nginx.ingress.kubernetes.io/proxy-body-size" = "50m";
           };
           spec = {
-            ingressClassName = "traefik";
+            ingressClassName = "nginx";
             tls = [
               {
                 secretName = "zammad-tls";

@@ -105,7 +105,7 @@
             {
               http01 = {
                 ingress = {
-                  class = "traefik";
+                  class = "nginx";
                 };
               };
             }

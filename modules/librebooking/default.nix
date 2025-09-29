@@ -349,11 +349,12 @@ in
         # Ingress for LibreBooking
         ingresses.librebooking = {
           metadata.annotations = {
-            "traefik.ingress.kubernetes.io/router.tls" = "true";
+            "nginx.ingress.kubernetes.io/ssl-redirect" = "true";
+            "nginx.ingress.kubernetes.io/force-ssl-redirect" = "true";
             "cert-manager.io/cluster-issuer" = "letsencrypt-vkm";
           };
           spec = {
-            ingressClassName = "traefik";
+            ingressClassName = "nginx";
             tls = [
               {
                 secretName = "librebooking-tls";

@@ -121,7 +121,7 @@
             {
               http01 = {
                 ingress = {
-                  class = "traefik";
+                  class = "nginx";
                 };
               };
             }
@@ -199,7 +199,9 @@
       tls = true;
       annotations = {
         "cert-manager.io/cluster-issuer" = "letsencrypt-prod";
-        "traefik.ingress.kubernetes.io/router.middlewares" = "traefik-compress@kubernetescrd";
+        "nginx.ingress.kubernetes.io/ssl-redirect" = "true";
+        "nginx.ingress.kubernetes.io/force-ssl-redirect" = "true";
+        "nginx.ingress.kubernetes.io/enable-gzip" = "true";
       };
     };
     resources = {
@@ -242,7 +244,9 @@
       tls = true;
       annotations = {
         "cert-manager.io/cluster-issuer" = "letsencrypt-prod";
-        "traefik.ingress.kubernetes.io/router.middlewares" = "traefik-compress@kubernetescrd";
+        "nginx.ingress.kubernetes.io/ssl-redirect" = "true";
+        "nginx.ingress.kubernetes.io/force-ssl-redirect" = "true";
+        "nginx.ingress.kubernetes.io/enable-gzip" = "true";
       };
     };
     resources = {

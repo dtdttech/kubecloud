@@ -5,7 +5,7 @@
     # ./cilium
     ./storage
     ./secrets
-    ./traefik
+    ./nginx-ingress
     ./external-dns
     ./external-secrets # Keep for backward compatibility, but new external secrets config in ./secrets/external
     ./prometheus

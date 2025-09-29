@@ -71,10 +71,18 @@ let
     # Ingress configuration
     ingress = {
       enabled = true;
-      className = "traefik";
+      className = "nginx";
       annotations = {
-        "traefik.ingress.kubernetes.io/router.tls" = "true";
-        "traefik.ingress.kubernetes.io/router.middlewares" = "nextcloud-nextcloud-redirect@kubernetescrd";
+        "nginx.ingress.kubernetes.io/ssl-redirect" = "true";
+        "nginx.ingress.kubernetes.io/force-ssl-redirect" = "true";
+        "nginx.ingress.kubernetes.io/configuration-snippet" = ''
+          location /.well-known/carddav {
+            return 301 /remote.php/dav;
+          }
+          location /.well-known/caldav {
+            return 301 /remote.php/dav;
+          }
+        '';
       };
       tls = [
         {

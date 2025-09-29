@@ -706,10 +706,11 @@ in
         # Ingress for Longhorn UI
         ingresses.longhorn-ui = lib.mkIf cfg.ui.enable {
           metadata.annotations = {
-            "traefik.ingress.kubernetes.io/router.tls" = "true";
+            "nginx.ingress.kubernetes.io/ssl-redirect" = "true";
+            "nginx.ingress.kubernetes.io/force-ssl-redirect" = "true";
           };
           spec = {
-            ingressClassName = "traefik";
+            ingressClassName = "nginx";
             tls = [
               {
                 secretName = "longhorn-ui-tls";

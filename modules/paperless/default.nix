@@ -147,10 +147,11 @@ let
     # Ingress configuration
     ingress = {
       enabled = true;
-      className = "traefik";
+      className = "nginx";
       annotations = {
-        "traefik.ingress.kubernetes.io/router.tls" = "true";
-        "traefik.ingress.kubernetes.io/router.middlewares" = "default-compress@kubernetescrd";
+        "nginx.ingress.kubernetes.io/ssl-redirect" = "true";
+        "nginx.ingress.kubernetes.io/force-ssl-redirect" = "true";
+        "nginx.ingress.kubernetes.io/enable-gzip" = "true";
       };
       tls = [
         {

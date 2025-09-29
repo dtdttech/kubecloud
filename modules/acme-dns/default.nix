@@ -251,10 +251,11 @@ in
         # Ingress for HTTP API
         ingresses.acme-dns = {
           metadata.annotations = {
-            "traefik.ingress.kubernetes.io/router.tls" = "true";
+            "nginx.ingress.kubernetes.io/ssl-redirect" = "true";
+            "nginx.ingress.kubernetes.io/force-ssl-redirect" = "true";
           };
           spec = {
-            ingressClassName = "traefik";
+            ingressClassName = "nginx";
             tls = [
               {
                 secretName = "acme-dns-tls";

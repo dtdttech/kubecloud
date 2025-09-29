@@ -106,10 +106,11 @@
       # Ingress configuration
       ingress = {
         enabled = true;
-        className = "traefik";
+        className = "nginx";
         annotations = {
           "cert-manager.io/cluster-issuer" = "letsencrypt-vkm";
-          "traefik.ingress.kubernetes.io/router.middlewares" = "default-headers@kubernetescrd";
+          "nginx.ingress.kubernetes.io/ssl-redirect" = "true";
+          "nginx.ingress.kubernetes.io/force-ssl-redirect" = "true";
         };
         tls = {
           enabled = true;
@@ -168,7 +169,7 @@
             {
               http01 = {
                 ingress = {
-                  class = "traefik";
+                  class = "nginx";
                 };
               };
             }

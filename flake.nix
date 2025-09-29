@@ -60,6 +60,17 @@
                   mkdir -p $out
                   cp -r $src/* $out/
                 '';
+            # Local ingress-nginx chart
+            ingress-nginx =
+              pkgs.runCommand "ingress-nginx-chart"
+                {
+                  src = ./charts/ingress-nginx;
+                  buildInputs = [ pkgs.kubernetes-helm ];
+                }
+                ''
+                  mkdir -p $out
+                  cp -r $src/* $out/
+                '';
           };
           envs = {
             prod = {
@@ -102,16 +113,6 @@
               crds = [
                 "pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnetworkpolicies.yaml"
                 "pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwidenetworkpolicies.yaml"
-              ];
-            };
-            traefik = nixidy.packages.${system}.generators.fromCRD {
-              name = "traefik";
-              src = nixhelm.chartsDerivations.${system}.traefik.traefik;
-              crds = [
-                "crds/traefik.io_ingressroutes.yaml"
-                "crds/traefik.io_ingressroutetcps.yaml"
-                "crds/traefik.io_ingressrouteudps.yaml"
-                "crds/traefik.io_traefikservices.yaml"
               ];
             };
             prometheus = nixidy.packages.${system}.generators.fromCRD {
@@ -170,9 +171,8 @@
             program =
               (pkgs.writeShellScript "generate-modules" ''
                 set -eo pipefail
-                mkdir -p modules/cilium modules/traefik modules/grafana modules/nextcloud modules/ceph-csi modules/cert-manager
+                mkdir -p modules/cilium modules/grafana modules/nextcloud modules/ceph-csi modules/cert-manager
                 cat ${self.packages.${system}.generators.cilium} > modules/cilium/generated.nix
-                cat ${self.packages.${system}.generators.traefik} > modules/traefik/generated.nix
                 cat ${self.packages.${system}.generators.prometheus} > modules/prometheus/generated.nix
                 cat ${self.packages.${system}.generators.grafana} > modules/grafana/generated.nix
                 cat ${self.packages.${system}.generators.ceph-csi} > modules/ceph-csi/generated.nix
