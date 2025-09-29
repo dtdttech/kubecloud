@@ -55,10 +55,13 @@ in
             "ingress"
           ];
 
-          # Primary provider specific configuration
-          primary = {
-            # Primary provider creates DNS records using the configured DNS provider
-            # This works with your existing DNS delegation setup
+          # CoreDNS with etcd specific configuration
+          coredns = {
+            # Etcd backend configuration for CoreDNS
+            etcdEndpoints = "http://etcd-cluster:2379";
+            etcdPrefix = "/skydns";
+            etcdUsername = "";
+            etcdPassword = "";
           };
 
           # Policy for how to handle DNS records

@@ -17,21 +17,18 @@ jobs:
         fetch-depth: 0
 
     - name: Install Nix
-      uses: cachix/install-nix-action@v25
+      uses: cachix/install-nix-action@v31
       with:
-        nix_path: nixpkgs=channel:nixos-unstable
         extra_nix_config: |
-          experimental-features = nix-command flakes
+          extra-experimental-features = nix-command flakes
           access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
 
-    - name: Setup cachix
-      uses: cachix/cachix-action@v14
+    
+    - name: Build VKM profile with Nixidy
+      uses: arnarg/nixidy/actions/build@main
+      id: build
       with:
-        name: kubecloud
-        authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-
-    - name: Build VKM profile
-      run: nix build .#vkm
+        environment: .#vkm
 
     - name: Checkout target repository
       uses: actions/checkout@v4
@@ -41,7 +38,8 @@ jobs:
         path: kubevkm_rendered
 
     - name: Copy build results
-      run: ./scripts/copy-result.sh result kubevkm_rendered
+      run: |
+        rsync --recursive --delete '${{steps.build.outputs.out-path}}/' kubevkm_rendered/
 
     - name: Configure Git
       run: |

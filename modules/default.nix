@@ -6,6 +6,7 @@
     ./storage
     ./secrets
     ./nginx-ingress
+    ./etcd
     ./external-dns
     ./external-secrets # Keep for backward compatibility, but new external secrets config in ./secrets/external
     ./prometheus
