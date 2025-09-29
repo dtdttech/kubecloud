@@ -1,0 +1,26 @@
+# apiVersion: metallb.io/v1beta1
+# kind: IPAddressPool
+# metadata:
+#   name: vkm-shared
+#   namespace: metallb-system
+# spec:
+#   addresses:
+#   - 130.83.206.157/32
+# ---
+# apiVersion: metallb.io/v1beta1
+# kind: L2Advertisement
+# metadata:
+#   name: vkm-shared-l2ad
+#   namespace: metallb-system
+# spec:
+#   ipAddressPools:
+#    - "vkm-shared"
+# ---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: pool-k1
+  namespace: metallb-system
+spec:
+  addresses:
+  - 130.83.206.156/32
