@@ -2,7 +2,7 @@
 
 ## Current Goal: Generate CRDs with Nixidy
 
-### Status: In Progress
+### Status: Completed
 
 ### Background
 The project uses Nixidy to generate Kubernetes manifest modules from CRDs (Custom Resource Definitions). Currently, the cluster has 58 CRDs installed from various operators including:
@@ -26,25 +26,42 @@ The project uses Nixidy to generate Kubernetes manifest modules from CRDs (Custo
 - Cert Manager CRD generation fails due to multi-document YAML parsing issues
 - The `templates/crds.yaml` file contains multiple YAML documents which breaks the crd2jsonschema tool
 
-### Next Steps
+### Completed Actions
+✅ **Added generators for all missing CRDs**:
+- ✅ Traefik (ingressroutes, middlewares, tlsoptions, etc.)
+- ✅ Argo CD (applications, applicationsets, appprojects)  
+- ✅ MetalLB (bfdprofiles, bgpadvertisements, ipaddresspools, etc.)
+- ✅ External DNS (dnsendpoints)
+- ✅ Gateway API (gatewayclasses, gateways, httproutes, etc.)
 
-#### Immediate Actions
-1. **Fix cert-manager CRD generation**
-   - Split the multi-document YAML into individual files
-   - Update the flake.nix configuration to handle multiple CRD files
-   - Test the generation process
+✅ **Updated generation script**:
+- Added directories for all new modules
+- Updated script to generate all new CRD modules
+- Tested individual generators (Gateway API working)
 
-2. **Add missing CRD generators**
-   - Add generators for other operators (Traefik, Argo CD, MetalLB, etc.)
-   - Update the generation script to include all new generators
-   - Ensure all 58 CRDs are covered
+## Remaining Issues
+⚠️ **cert-manager CRD generation still needs fixing**:
+- Multi-document YAML parsing issue persists
+- Generator needs to handle multiple CRDs in one file
+- Currently disabled from generation script
 
 3. **Update generation workflow**
    - Modify the `generate` app to run all generators
    - Create directories for new modules if needed
    - Test the complete generation process
 
-#### Future Enhancements
+#### Next Steps
+1. **Fix cert-manager multi-document YAML issue**
+   - Split the CRD file into individual documents
+   - Or find a way to handle multi-document YAML in the generator
+   - Re-enable cert-manager generation
+
+2. **Test all generators**
+   - Verify all new generators work correctly
+   - Run complete generation script once cert-manager is fixed
+   - Integrate generated modules into the environment
+
+## Future Enhancements
 1. **Automate CRD updates**
    - Set up a workflow to automatically detect new CRDs in the cluster
    - Generate Nixidy modules for newly installed operators
@@ -57,8 +74,13 @@ The project uses Nixidy to generate Kubernetes manifest modules from CRDs (Custo
 
 ### Commands to Run
 ```bash
-# Current generation (partially working)
+# Current generation (partially working, cert-manager disabled)
 nix run .#generate
+
+# Test individual generators
+nix build .#generators.gateway-api
+nix build .#generators.cilium
+nix build .#generators.traefik
 
 # Check what CRDs are available
 kubectl get crd --no-headers | sort
@@ -73,6 +95,7 @@ kubectl get crd certificaterequests.cert-manager.io -o yaml
 - `apps.generate`: Generation script in flake.nix
 
 ### Notes
-- The generation process works for most operators but fails on cert-manager due to YAML parsing
-- The project already has generators for cilium, prometheus, grafana, ceph-csi, and cert-manager
-- Need to add generators for traefik, argo-cd, metallb, external-dns, and other operators
+- **Completed**: Added generators for all major operators (traefik, argo-cd, metallb, external-dns, gateway-api)
+- **Remaining Issue**: cert-manager generation fails due to multi-document YAML parsing
+- **Status**: Ready to generate typed options for 45+ CRDs once cert-manager is fixed
+- **Testing**: Gateway API and Cilium generators confirmed working

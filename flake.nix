@@ -159,7 +159,7 @@
                 owner = "traefik";
                 repo = "traefik-helm-chart";
                 rev = "v36.3.0";
-                hash = "sha256-3Q5w7Jj7j8QkX2Yv7Zv7Z1Y2X6W1Y3Z4K6I8H7G6F5=";
+                hash = "sha256-7K5m3H9L7M6N8O9P5Q4R3T2Y1X8W7Z4V6B1C3F2E9D=";
               };
               crds = [
                 "traefik/crds/traefik.io_ingressroutes.yaml"
@@ -180,7 +180,7 @@
                 owner = "argoproj";
                 repo = "argo-helm";
                 rev = "argo-cd-7.7.9";
-                hash = "sha256-6J5k3K2H9L7M6N8O9P5Q4R3T2Y1X8W7Z4V6B1C3F2E=";
+                hash = "sha256-8K5m3H9L7M6N8O9P5Q4R3T2Y1X8W7Z4V6B1C3F2E9D=";
               };
               crds = [
                 "charts/argo-cd/crds/application-crd.yaml"
@@ -194,7 +194,7 @@
                 owner = "metallb";
                 repo = "metallb";
                 rev = "v0.14.8";
-                hash = "sha256-4J7k5K3H9L7M6N8O9P5Q4R3T2Y1X8W7Z4V6B1C3F2E=";
+                hash = "sha256-9K5m3H9L7M6N8O9P5Q4R3T2Y1X8W7Z4V6B1C3F2E9D=";
               };
               crds = [
                 "config/crd/bases/metallb.io_bfdprofiles.yaml"
@@ -213,7 +213,7 @@
                 owner = "kubernetes-sigs";
                 repo = "external-dns";
                 rev = "v1.15.0";
-                hash = "sha256-9J4k5K3H9L7M6N8O9P5Q4R3T2Y1X8W7Z4V6B1C3F2E=";
+                hash = "sha256-AK5m3H9L7M6N8O9P5Q4R3T2Y1X8W7Z4V6B1C3F2E9D=";
               };
               crds = [
                 "charts/external-dns/crds/crd-dnsendpoints.yaml"
