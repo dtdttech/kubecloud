@@ -39,28 +39,31 @@
       coredns = {
         # Etcd endpoint configuration
         etcdEndpoints = "http://etcd-cluster.etcd:2379";
-        
+
         # Path prefix for DNS records in etcd
         etcdPrefix = "/skydns";
-        
+
         # Credentials for etcd (if needed)
         # etcdUsername = "";
         # etcdPassword = "";
-        
+
         # TTL for DNS records
         txtPrefix = "external-dns";
         txtOwnerId = "external-dns";
       };
-      
+
       # Policy for how to handle DNS records
       policy = "sync";
-      
+
       # Interval for checking DNS changes
       interval = "1m";
-      
+
       # Sources to monitor
-      sources = [ "service" "ingress" ];
-      
+      sources = [
+        "service"
+        "ingress"
+      ];
+
       # Don't process annotations on the same resource more than once
       txtOwnerId = "external-dns";
     };

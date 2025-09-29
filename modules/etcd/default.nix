@@ -6,7 +6,7 @@
 
 let
   cfg = config.networking.etcd;
-  
+
   namespace = "etcd";
 in
 {
@@ -16,33 +16,33 @@ in
       default = false;
       description = "Enable etcd for DNS backend storage";
     };
-    
+
     clusterDomain = mkOption {
       type = types.str;
       default = "etcd-cluster";
       description = "Cluster domain name for etcd";
     };
-    
+
     replicas = mkOption {
       type = types.int;
       default = 1;
       description = "Number of etcd replicas";
     };
-    
+
     storage = {
       size = mkOption {
         type = types.str;
         default = "5Gi";
         description = "Storage size for etcd data";
       };
-      
+
       className = mkOption {
         type = types.str;
         default = "ceph-rbd";
         description = "Storage class for etcd persistent volume";
       };
     };
-    
+
     resources = {
       requests = {
         cpu = mkOption {
@@ -50,21 +50,21 @@ in
           default = "100m";
           description = "CPU request for etcd";
         };
-        
+
         memory = mkOption {
           type = types.str;
           default = "128Mi";
           description = "Memory request for etcd";
         };
       };
-      
+
       limits = {
         cpu = mkOption {
           type = types.str;
           default = "500m";
           description = "CPU limit for etcd";
         };
-        
+
         memory = mkOption {
           type = types.str;
           default = "512Mi";
@@ -162,12 +162,20 @@ in
                       };
                     };
                     livenessProbe = {
-                      exec.command = [ "/bin/sh" "-c" "etcdctl endpoint health" ];
+                      exec.command = [
+                        "/bin/sh"
+                        "-c"
+                        "etcdctl endpoint health"
+                      ];
                       initialDelaySeconds = 30;
                       periodSeconds = 10;
                     };
                     readinessProbe = {
-                      exec.command = [ "/bin/sh" "-c" "etcdctl endpoint health" ];
+                      exec.command = [
+                        "/bin/sh"
+                        "-c"
+                        "etcdctl endpoint health"
+                      ];
                       initialDelaySeconds = 5;
                       periodSeconds = 5;
                     };
@@ -213,8 +221,11 @@ in
         # Network policy for etcd
         networkPolicies.etcd.spec = {
           podSelector.matchLabels.app = "etcd";
-          policyTypes = [ "Ingress" "Egress" ];
-          
+          policyTypes = [
+            "Ingress"
+            "Egress"
+          ];
+
           ingress = [
             # Allow external-dns to access etcd
             {
@@ -231,7 +242,7 @@ in
               ];
             }
           ];
-          
+
           egress = [
             # Allow etcd to communicate with peers
             {
