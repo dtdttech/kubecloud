@@ -9,17 +9,18 @@ on:
 
 jobs:
   build-vkm:
-    runs-on: nixery.dev/shell/git
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout source repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - name: Enable Nix Flakes
-      run: |
-        echo 'experimental-features = nix-command flakes' | sudo tee -a /etc/nix/nix.conf
-        sudo nix-channel --update
+    - name: Install Nix
+      uses: cachix/install-nix-action@v31
+      with:
+        extra_nix_config: |
+          extra-experimental-features = nix-command flakes
     
     - name: Build VKM profile with Nixidy
       uses: arnarg/nixidy/actions/build@main
@@ -35,15 +36,13 @@ jobs:
 
   deploy-vkm:
     needs: build-vkm
-    runs-on: nixery.dev/shell/git
+    runs-on: ubuntu-latest
     steps:
-    - name: Enable Nix Flakes
-      run: |
-        echo 'experimental-features = nix-command flakes' | sudo tee -a /etc/nix/nix.conf
-        sudo nix-channel --update
-    
-    - name: Install rsync
-      run: nix-shell -p rsync --run "echo rsync installed"
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: vkm-build
+        path: build-output
 
     - name: Checkout target repository
       uses: actions/checkout@v4
@@ -51,32 +50,23 @@ jobs:
         repository: dtdttech/kubevkm_rendered
         token: ${{ secrets.RENDERED_REPO_TOKEN }}
         path: kubevkm_rendered
-        ref: master  # Explicitly checkout master branch
-
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: vkm-build
-        path: build-output
 
     - name: Copy build results
       run: |
         rsync --recursive --delete build-output/ kubevkm_rendered/
 
-    - name: Configure Git
-      run: |
-        cd kubevkm_rendered
-        git config user.name "github-actions"
-        git config user.email "github-actions@github.com"
-
-    - name: Commit changes
-      run: |
-        cd kubevkm_rendered
-        git add .
-        git commit -m "chore: promote to dev ${{github.sha}}"
-        git push origin HEAD:promote/env/dev --force-with-lease
+    - name: Commit and push changes
+      uses: EndBug/add-and-commit@v9
+      id: commit
+      with:
+        default_author: github_actions
+        message: "chore: promote to dev ${{github.sha}}"
+        fetch: false
+        new_branch: promote/env/dev
+        push: --force-with-lease origin promote/env/dev
 
     - name: Create Pull Request
+      if: ${{ steps.commit.outputs.pushed == 'true' }}
       uses: peter-evans/create-pull-request@v5
       with:
         token: ${{ secrets.RENDERED_REPO_TOKEN }}
