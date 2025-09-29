@@ -25,12 +25,17 @@ in
 
     provider = mkOption {
       type = types.enum [
-        "primary"
+        "inmemory"
         "coredns"
         "cloudflare"
         "route53"
+        "aws"
+        "azure"
+        "google"
+        "digitalocean"
+        "linode"
       ];
-      default = "primary";
+      default = "inmemory";
       description = "DNS provider for external-dns";
     };
 
@@ -55,13 +60,10 @@ in
             "ingress"
           ];
 
-          # CoreDNS with etcd specific configuration
-          coredns = {
-            # Etcd backend configuration for CoreDNS
-            etcdEndpoints = "http://etcd-cluster:2379";
-            etcdPrefix = "/skydns";
-            etcdUsername = "";
-            etcdPassword = "";
+          # In-memory provider specific configuration
+          inmemory = {
+            # In-memory provider doesn't require additional configuration
+            # It's useful for testing and development
           };
 
           # Policy for how to handle DNS records

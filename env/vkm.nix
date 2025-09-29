@@ -16,56 +16,31 @@
 
   networking.domain = "vkm.maschinenbau.tu-darmstadt.de";
 
-  # etcd cluster for DNS backend storage
-  networking.etcd = {
-    enable = true;
-    clusterDomain = "etcd-cluster";
-    replicas = 1;
-    storage = {
-      size = "5Gi";
-      className = "ceph-rbd";
-    };
-  };
-
-  # External DNS configuration for DNS management using CoreDNS with etcd
+  # External DNS configuration for DNS management
   networking.external-dns = {
     enable = true;
     domainFilters = [
       "kube.vkm.maschinenbau.tu-darmstadt.de"
     ];
-    provider = "coredns";
+    provider = "inmemory";
     values = {
-      # CoreDNS with etcd configuration
-      coredns = {
-        # Etcd endpoint configuration
-        etcdEndpoints = "http://etcd-cluster.etcd:2379";
-
-        # Path prefix for DNS records in etcd
-        etcdPrefix = "/skydns";
-
-        # Credentials for etcd (if needed)
-        # etcdUsername = "";
-        # etcdPassword = "";
-
-        # TTL for DNS records
-        txtPrefix = "external-dns";
-        txtOwnerId = "external-dns";
-      };
-
       # Policy for how to handle DNS records
       policy = "sync";
-
+      
       # Interval for checking DNS changes
       interval = "1m";
-
+      
       # Sources to monitor
-      sources = [
-        "service"
-        "ingress"
-      ];
-
+      sources = [ "service" "ingress" ];
+      
       # Don't process annotations on the same resource more than once
       txtOwnerId = "external-dns";
+      
+      # Log level for debugging
+      logLevel = "debug";
+      
+      # Run in dry-run mode initially for testing
+      dryRun = false;
     };
   };
 
