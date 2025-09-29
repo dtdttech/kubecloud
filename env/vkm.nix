@@ -257,6 +257,55 @@
     };
   };
 
+  # Identity and access management with Keycloak
+  identity.keycloak = {
+    enable = true;
+    domain = "auth.kube.vkm.maschinenbau.tu-darmstadt.de";
+    admin = {
+      username = "admin";
+      password = "keycloak_vkm_secure123";
+    };
+    database = {
+      name = "keycloak_vkm";
+      user = "keycloak_vkm";
+      password = "keycloak_vkm_db_secure123";
+    };
+    mode = "production";
+  };
+
+  # Documentation platform with BookStack
+  documentation.bookstack = {
+    enable = true;
+    domain = "docs.kube.vkm.maschinenbau.tu-darmstadt.de";
+    timezone = "Europe/Berlin";
+    database = {
+      name = "bookstack_vkm";
+      user = "bookstack_vkm";
+      password = "bookstack_vkm_secure123";
+    };
+    app = {
+      key = "base64:H+eX8SaXwaCTY7jKDfXDfm2NvGV9RkSKzGHvwdHvz/w=";
+    };
+    storage = {
+      provider = "ceph";
+      database = {
+        size = "20Gi";
+      };
+      config = {
+        size = "10Gi";
+      };
+    };
+    secrets = {
+      provider = "internal";
+      database = {
+        useExisting = false;
+      };
+      app = {
+        useExisting = false;
+      };
+    };
+  };
+
   # Disable samba service (not needed for DNS management)
   services.samba.enable = false;
 

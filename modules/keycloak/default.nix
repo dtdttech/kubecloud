@@ -155,6 +155,7 @@ in
         persistentVolumeClaims.postgresql-pvc = {
           spec = {
             accessModes = [ "ReadWriteOnce" ];
+            storageClassName = "ceph-rbd";
             resources.requests.storage = "20Gi";
           };
         };
@@ -335,6 +336,7 @@ in
           metadata.annotations = {
             "nginx.ingress.kubernetes.io/ssl-redirect" = "true";
             "nginx.ingress.kubernetes.io/force-ssl-redirect" = "true";
+            "cert-manager.io/cluster-issuer" = "letsencrypt-vkm";
           };
           spec = {
             ingressClassName = "nginx";

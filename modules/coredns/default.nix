@@ -20,49 +20,49 @@ let
 
     # CoreDNS configuration
     isClusterService = true;
-    
+
     # Server configuration
     servers = [
       {
         port = 53;
         zones = [
           {
-            zone: ".";
-            scheme: "";
-            useTCP: true;
+            zone = ".";
+            scheme = "";
+            useTCP = true;
           }
         ];
         plugins = [
           {
-            name: "errors";
-            config: {
+            name = "errors";
+            config = {
               # No configuration needed for errors plugin
             };
           }
           {
-            name: "health";
-            config: {
+            name = "health";
+            config = {
               lameduck = "5s";
             };
           }
           {
-            name: "ready";
+            name = "ready";
           }
           {
-            name: "prometheus";
-            parameters: "0.0.0.0:9153";
+            name = "prometheus";
+            parameters = "0.0.0.0:9153";
           }
           {
-            name: "forward";
-            parameters: ". /etc/resolv.conf";
+            name = "forward";
+            parameters = ". /etc/resolv.conf";
             config = {
               policy = "sequential";
               prefer_udp = true;
             };
           }
           {
-            name: "cache";
-            parameters: "30";
+            name = "cache";
+            parameters = "30";
             config = {
               success = 9984;
               denial = 9984;
@@ -70,13 +70,13 @@ let
             };
           }
           {
-            name: "loop";
+            name = "loop";
           }
           {
-            name: "reload";
+            name = "reload";
           }
           {
-            name: "loadbalance";
+            name = "loadbalance";
           }
         ];
       }
@@ -84,10 +84,10 @@ let
 
     # Service configuration
     serviceType = "ClusterIP";
-    
+
     # ClusterIP configuration for DNS service
     clusterIP = "10.96.0.10";
-    
+
     # Additional service annotations
     serviceAnnotations = {
       "prometheus.io/port" = "9153";

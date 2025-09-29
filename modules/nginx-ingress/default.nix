@@ -66,12 +66,14 @@ let
         "keep-alive-requests" = "1000";
         # SSL/TLS configuration
         "ssl-protocols" = "TLSv1.2 TLSv1.3";
-        "ssl-ciphers" = "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384";
+        "ssl-ciphers" =
+          "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384";
         "ssl-session-cache" = "shared:SSL:10m";
         "ssl-session-timeout" = "1d";
         "ssl-session-tickets" = "false";
         # Log format
-        "log-format-upstream" = ''$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" $request_length $request_time [$proxy_upstream_name] [$proxy_upstream_addr] [$upstream_response_time] [$upstream_status] [$upstream_response_length]'';
+        "log-format-upstream" =
+          ''$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" $request_length $request_time [$proxy_upstream_name] [$proxy_upstream_addr] [$upstream_response_time] [$upstream_status] [$upstream_response_length]'';
         # Access log settings
         "enable-access-log-for-default-backend" = "true";
         "access-log-path" = "/var/log/nginx/access.log";

@@ -153,6 +153,88 @@
                 "templates/crds.yaml"
               ];
             };
+            traefik = nixidy.packages.${system}.generators.fromCRD {
+              name = "traefik";
+              src = pkgs.fetchFromGitHub {
+                owner = "traefik";
+                repo = "traefik-helm-chart";
+                rev = "v36.3.0";
+                hash = "sha256-3Q5w7Jj7j8QkX2Yv7Zv7Z1Y2X6W1Y3Z4K6I8H7G6F5=";
+              };
+              crds = [
+                "traefik/crds/traefik.io_ingressroutes.yaml"
+                "traefik/crds/traefik.io_ingressroutetcps.yaml"
+                "traefik/crds/traefik.io_ingressrouteudps.yaml"
+                "traefik/crds/traefik.io_middlewares.yaml"
+                "traefik/crds/traefik.io_middlewaretcps.yaml"
+                "traefik/crds/traefik.io_serverstransports.yaml"
+                "traefik/crds/traefik.io_serverstransporttcps.yaml"
+                "traefik/crds/traefik.io_tlsoptions.yaml"
+                "traefik/crds/traefik.io_tlsstores.yaml"
+                "traefik/crds/traefik.io_traefikservices.yaml"
+              ];
+            };
+            argo-cd = nixidy.packages.${system}.generators.fromCRD {
+              name = "argo-cd";
+              src = pkgs.fetchFromGitHub {
+                owner = "argoproj";
+                repo = "argo-helm";
+                rev = "argo-cd-7.7.9";
+                hash = "sha256-6J5k3K2H9L7M6N8O9P5Q4R3T2Y1X8W7Z4V6B1C3F2E=";
+              };
+              crds = [
+                "charts/argo-cd/crds/application-crd.yaml"
+                "charts/argo-cd/crds/applicationset-crd.yaml"
+                "charts/argo-cd/crds/appproject-crd.yaml"
+              ];
+            };
+            metallb = nixidy.packages.${system}.generators.fromCRD {
+              name = "metallb";
+              src = pkgs.fetchFromGitHub {
+                owner = "metallb";
+                repo = "metallb";
+                rev = "v0.14.8";
+                hash = "sha256-4J7k5K3H9L7M6N8O9P5Q4R3T2Y1X8W7Z4V6B1C3F2E=";
+              };
+              crds = [
+                "config/crd/bases/metallb.io_bfdprofiles.yaml"
+                "config/crd/bases/metallb.io_bgpadvertisements.yaml"
+                "config/crd/bases/metallb.io_bgppeers.yaml"
+                "config/crd/bases/metallb.io_communities.yaml"
+                "config/crd/bases/metallb.io_ipaddresspools.yaml"
+                "config/crd/bases/metallb.io_l2advertisements.yaml"
+                "config/crd/bases/metallb.io_servicebgpstatuses.yaml"
+                "config/crd/bases/metallb.io_servicel2statuses.yaml"
+              ];
+            };
+            external-dns = nixidy.packages.${system}.generators.fromCRD {
+              name = "external-dns";
+              src = pkgs.fetchFromGitHub {
+                owner = "kubernetes-sigs";
+                repo = "external-dns";
+                rev = "v1.15.0";
+                hash = "sha256-9J4k5K3H9L7M6N8O9P5Q4R3T2Y1X8W7Z4V6B1C3F2E=";
+              };
+              crds = [
+                "charts/external-dns/crds/crd-dnsendpoints.yaml"
+              ];
+            };
+            gateway-api = nixidy.packages.${system}.generators.fromCRD {
+              name = "gateway-api";
+              src = pkgs.fetchFromGitHub {
+                owner = "kubernetes-sigs";
+                repo = "gateway-api";
+                rev = "v1.1.0";
+                hash = "sha256-p7eRwjMoDDnZ89sjBxcmYy1J7hT1VG8wQR2VhQ5mi9I=";
+              };
+              crds = [
+                "config/crd/experimental/gateway.networking.k8s.io_gatewayclasses.yaml"
+                "config/crd/experimental/gateway.networking.k8s.io_gateways.yaml"
+                "config/crd/experimental/gateway.networking.k8s.io_grpcroutes.yaml"
+                "config/crd/experimental/gateway.networking.k8s.io_httproutes.yaml"
+                "config/crd/experimental/gateway.networking.k8s.io_referencegrants.yaml"
+              ];
+            };
             # nextcloud = nixidy.packages.${system}.generators.fromCRD {
             #   name = "nextcloud";
             #   src = pkgs.fetchFromGitHub {
@@ -171,12 +253,19 @@
             program =
               (pkgs.writeShellScript "generate-modules" ''
                 set -eo pipefail
-                mkdir -p modules/cilium modules/grafana modules/nextcloud modules/ceph-csi modules/cert-manager
+                mkdir -p modules/cilium modules/grafana modules/nextcloud modules/ceph-csi modules/cert-manager modules/traefik modules/argo-cd modules/metallb modules/external-dns modules/gateway-api
                 cat ${self.packages.${system}.generators.cilium} > modules/cilium/generated.nix
                 cat ${self.packages.${system}.generators.prometheus} > modules/prometheus/generated.nix
                 cat ${self.packages.${system}.generators.grafana} > modules/grafana/generated.nix
                 cat ${self.packages.${system}.generators.ceph-csi} > modules/ceph-csi/generated.nix
-                cat ${self.packages.${system}.generators.cert-manager} > modules/cert-manager/generated.nix
+                # cat ${
+                  self.packages.${system}.generators.cert-manager
+                } > modules/cert-manager/generated.nix # TODO: Fix multi-document YAML issue
+                cat ${self.packages.${system}.generators.traefik} > modules/traefik/generated.nix
+                cat ${self.packages.${system}.generators.argo-cd} > modules/argo-cd/generated.nix
+                cat ${self.packages.${system}.generators.metallb} > modules/metallb/generated.nix
+                cat ${self.packages.${system}.generators.external-dns} > modules/external-dns/generated.nix
+                cat ${self.packages.${system}.generators.gateway-api} > modules/gateway-api/generated.nix
                 # cat ${self.packages.${system}.generators.nextcloud} > modules/nextcloud/generated.nix
               '').outPath;
           };
