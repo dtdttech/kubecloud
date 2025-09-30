@@ -11,8 +11,8 @@ let
   cfg = config.security.cert-manager;
   namespace = cfg.namespace;
   values = lib.attrsets.recursiveUpdate {
-    # Install CRDs
-    installCRDs = true;
+    # Don't install CRDs via Helm - they're already installed in the cluster
+    installCRDs = false;
 
     # Global settings
     global = {
