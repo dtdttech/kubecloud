@@ -71,6 +71,17 @@
                   mkdir -p $out
                   cp -r $src/* $out/
                 '';
+            # Local coredns chart
+            coredns =
+              pkgs.runCommand "coredns-chart"
+                {
+                  src = pkgs.lib.cleanSource ./charts/coredns;
+                  buildInputs = [ pkgs.kubernetes-helm ];
+                }
+                ''
+                  mkdir -p $out
+                  cp -r $src/* $out/
+                '';
           };
           envs = {
             prod = {

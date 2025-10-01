@@ -6,7 +6,7 @@
 }:
 
 let
-  cfg = config.applications.coredns;
+  cfg = config.networking.coredns;
 
   namespace = "coredns";
 
@@ -187,10 +187,10 @@ let
   // cfg.values;
 in
 {
-  options.applications.coredns = with lib; {
+  options.networking.coredns = with lib; {
     enable = mkOption {
       type = types.bool;
-      default = true;
+      default = false;
       description = "Enable CoreDNS via Helm";
     };
 
@@ -207,11 +207,7 @@ in
       createNamespace = true;
 
       helm.releases.coredns = {
-        chart = {
-          name = "coredns";
-          repository = "https://coredns.github.io/helm";
-          version = "1.29.0";
-        };
+        chart = charts.coredns;
         inherit values;
       };
     };

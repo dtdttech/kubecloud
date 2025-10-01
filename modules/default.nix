@@ -21,6 +21,9 @@
     ./github-runner
     ./nginx
     ./samba
+    ./coredns
+    ./uptime-kuma
+    ./docker-registry
     # ./ceph-csi  # Moved to ./storage/ceph
   ];
   options = with lib; {

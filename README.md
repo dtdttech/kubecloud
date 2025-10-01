@@ -37,14 +37,15 @@ This project provides a comprehensive Kubernetes stack with:
 ### Infrastructure & Networking
 - **[Cilium](modules/cilium/)** - CNI with advanced networking and security policies
 - **[CoreDNS](modules/coredns/)** - Cluster DNS service
-- **[MetalLB](modules/metallb/)** - Load balancer implementation for bare metal
 - **[Traefik](modules/traefik/)** - Ingress controller and reverse proxy
 - **[NGINX Ingress](modules/nginx-ingress/)** - Alternative ingress controller
+- **[NGINX](modules/nginx/)** - Web server and reverse proxy
 
 ### Storage & Data
 - **[Ceph CSI](modules/ceph-csi/)** - Ceph storage interface for dynamic provisioning
 - **[Storage](modules/storage/)** - Storage class configuration
 - **[Samba](modules/samba/)** - SMB/CIFS file sharing
+- **[etcd](modules/etcd/)** - Distributed key-value store
 
 ### Observability & Monitoring
 - **[Prometheus](modules/prometheus/)** - Metrics collection and alerting
@@ -64,6 +65,9 @@ This project provides a comprehensive Kubernetes stack with:
 - **[Bookstack](modules/bookstack/)** - Wiki and documentation platform
 - **[Zammad](modules/zammad/)** - Help desk and customer support
 - **[Passbolt](modules/passbolt/)** - Password manager
+- **[Seafile](modules/seafile/)** - File synchronization and collaboration
+- **[LibreBooking](modules/librebooking/)** - Booking and reservation system
+- **[GitHub Runner](modules/github-runner/)** - Self-hosted GitHub Actions runner
 
 ## CRD Generation
 
@@ -85,6 +89,8 @@ The following operators have CRD generators configured:
 | **MetalLB** | 8 CRDs (BGP profiles, IP pools, etc.) | ✅ Configured |
 | **External DNS** | 1 CRD (DNSEndpoints) | ✅ Configured |
 | **Gateway API** | 5 CRDs (Gateways, HTTPRoutes, etc.) | ✅ Working |
+
+**Total CRDs Supported:** 54+ custom resources across 8 operators
 
 ### Usage
 
@@ -185,9 +191,20 @@ Development environment for testing.
 
 ## Documentation
 
-- [CRD Generation Guide](docs/generating-crd-definitions.md) - Detailed guide on generating typed resource options
 - [Storage Configuration](STORAGE.md) - Storage setup and configuration
 - [TODO](TODO.md) - Current tasks and roadmap
+
+## Project Status
+
+This is an actively maintained Kubernetes infrastructure project with **20+ modules** covering networking, storage, security, monitoring, and applications. The project uses modern GitOps practices with Nix for reproducible builds and typed configurations.
+
+**Key Features:**
+- ✅ Reproducible builds with Nix
+- ✅ GitOps deployment via Argo CD  
+- ✅ Type-safe resource definitions
+- ✅ Comprehensive module ecosystem
+- ✅ Automated CRD generation
+- ⚠️ cert-manager CRD generation (in progress)
 
 ## Contributing
 

@@ -61,7 +61,7 @@ jobs:
     - name: Checkout rendered repository
       uses: actions/checkout@v4
       with:
-        repository: dtdttech/kubevkm_rendered
+        repository: dtdttech/kubedtdt_rendered
         token: '${{ secrets.RENDERED_DTDT_REPO }}'
         path: rendered-repo
         

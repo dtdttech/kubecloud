@@ -1,0 +1,17 @@
+apiVersion: v2
+name: docker-registry
+description: A Helm chart for Docker Registry - a private Docker registry
+type: application
+version: 0.1.0
+appVersion: "2.8.3"
+keywords:
+  - docker
+  - registry
+  - container
+  - private
+home: https://docs.docker.com/registry/
+sources:
+  - https://github.com/distribution/distribution
+maintainers:
+  - name: nixidy
+    email: noreply@example.com

@@ -1,0 +1,16 @@
+apiVersion: v2
+name: uptime-kuma
+description: A Helm chart for Uptime Kuma - a self-hosted monitoring tool
+type: application
+version: 0.1.0
+appVersion: "1.23.13"
+keywords:
+  - monitoring
+  - uptime
+  - status
+home: https://github.com/louislam/uptime-kuma
+sources:
+  - https://github.com/louislam/uptime-kuma
+maintainers:
+  - name: nixidy
+    email: noreply@example.com
