@@ -26,32 +26,20 @@
     };
     providers = {
       local.enable = false; # Disable local storage
-      ceph = {
-        enable = false; # Disable Ceph
-        cluster = {
-          clusterID = "ceph-cluster";
-          monitors = [ ];
-        };
-      };
+      ceph.enable = false; # Disable Ceph
       cephfs.enable = false; # Disable CephFS
       longhorn = {
         enable = true;
-        isDefault = true; # Set as default storage class
-        defaultClass = true;
-        reclaimPolicy = "Delete";
-        allowVolumeExpansion = true;
-        defaultSettings = {
-          replicaCount = 3;
-          dataLocality = "strict-local";
-          storageNetwork = "10.42.0.0/16";
-          defaultDataPath = "/opt/longhorn/";
-          backupTarget = "s3://vkm-backups@us-east-1/";
-          backupTargetCredentialSecret = "longhorn-backup-secret";
+        storageClass = {
+          isDefault = true;
+          numberOfReplicas = 3;
+          reclaimPolicy = "Delete";
+          allowVolumeExpansion = true;
         };
-        persistence = {
-          enabled = true;
-          storageClass = "longhorn";
-          size = "20Gi";
+        settings = {
+          defaultDataPath = "/var/lib/longhorn/";
+          defaultReplicaCount = 3;
+          replicaSoftAntiAffinity = false;
         };
       };
     };
@@ -60,49 +48,7 @@
   # Secrets configuration for DTDT environment
   secrets = {
     defaultProvider = "external"; # Use external secrets for production
-    commonLabels = {
-      "environment" = "vkm-production";
-      "managed-by" = "kubecloud";
-    };
-    security = {
-      enforceEncryption = true;
-      allowedNamespaces = [
-        "bookstack"
-        "zammad"
-        "monitoring"
-        "longhorn-system"
-        "cert-manager"
-        "external-secrets-system"
-      ];
-    };
-    lifecycle = {
-      enableRotation = true;
-      rotationInterval = "90d";
-    };
-    providers = {
-      internal.enable = false; # Disable internal secrets in production
-      external = {
-        enable = true;
-        namespace = "external-secrets-system";
-        monitoring.enable = true;
-        secretStores = {
-          # 1Password configuration for DTDT
-          onepassword-store = {
-            provider = "1password";
-            namespace = null; # ClusterSecretStore
-            config = {
-              server = "https://vkm.1password.com";
-            };
-            auth = {
-              kubernetes = {
-                mountPath = "kubernetes";
-                role = "external-secrets-vkm";
-              };
-            };
-          };
-        };
-      };
-    };
+    defaultSecretStore = "onepassword-store";
   };
 
   # Certificate management for DTDT
@@ -125,56 +71,18 @@
                 };
               };
             }
-            # DNS-01 solver for wildcard certificates
-            {
-              dns01 = {
-                cloudflare = {
-                  email = "admin@dtdt.tech";
-                  apiTokenSecretRef = {
-                    name = "cloudflare-api-token";
-                    key = "api-token";
-                  };
-                };
-              };
-              selector = {
-                dnsZones = [ "vkm.dtdt.tech" ];
-              };
-            }
           ];
         };
       };
+    };
 
-      # Self-signed CA for internal services
-      internal-ca = {
-        type = "ca";
-        ca = {
-          secretName = "internal-ca-key-pair";
+    values = {
+      prometheus = {
+        enabled = true;
+        servicemonitor = {
+          enabled = true;
         };
       };
-    };
-
-    defaultIssuer = "letsencrypt-prod";
-
-    dns.providers = {
-      cloudflare = {
-        type = "cloudflare";
-        secretName = "cloudflare-api-token";
-        config = {
-          email = "admin@vkm.dtdt.tech";
-        };
-      };
-    };
-
-    monitoring = {
-      enabled = true;
-      alerts = {
-        certificateExpiry = true;
-        certificateRenewalFailure = true;
-      };
-    };
-
-    security = {
-      networkPolicies.enabled = true;
     };
   };
 
@@ -245,49 +153,23 @@
   # Monitoring configuration for DTDT services
   monitoring.prometheus = {
     enable = true;
-    storage = {
-      provider = "longhorn";
-      size = "50Gi";
-    };
-    alerts = {
-      enabled = true;
-      rules = {
-        BookstackDown = {
-          expr = "up{job=\"bookstack\"} == 0";
-          for = "5m";
-          labels.severity = "critical";
-          annotations.summary = "Bookstack is down";
-          annotations.description = "Bookstack service has been down for more than 5 minutes";
-        };
-        ZammadDown = {
-          expr = "up{job=\"zammad\"} == 0";
-          for = "5m";
-          labels.severity = "critical";
-          annotations.summary = "Zammad is down";
-          annotations.description = "Zammad service has been down for more than 5 minutes";
+    values = {
+      prometheus.prometheusSpec = {
+        retention = "15d";
+        storageSpec = {
+          volumeClaimTemplate = {
+            spec = {
+              storageClassName = "longhorn";
+              accessModes = ["ReadWriteOnce"];
+              resources = {
+                requests = {
+                  storage = "50Gi";
+                };
+              };
+            };
+          };
         };
       };
-    };
-  };
-
-  monitoring.grafana = {
-    enable = true;
-    domain = "grafana.vkm.dtdt.tech";
-    storage = {
-      provider = "longhorn";
-      size = "10Gi";
-    };
-    ingress = {
-      enable = true;
-      tls = true;
-      annotations = {
-        "cert-manager.io/cluster-issuer" = "letsencrypt-prod";
-      };
-    };
-    dashboards = {
-      bookstack = true;
-      zammad = true;
-      longhorn = true;
     };
   };
 
