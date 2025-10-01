@@ -235,6 +235,21 @@
                 "config/crd/experimental/gateway.networking.k8s.io_referencegrants.yaml"
               ];
             };
+            github-runner = nixidy.packages.${system}.generators.fromCRD {
+              name = "github-runner";
+              src = pkgs.fetchFromGitHub {
+                owner = "actions";
+                repo = "actions-runner-controller";
+                rev = "gha-runner-scale-set-0.12.1";
+                hash = "sha256-7K5m3H9L7M6N8O9P5Q4R3T2Y1X8W7Z4V6B1C3F2E9D=";
+              };
+              crds = [
+                "charts/gha-runner-scale-set-controller/crds/autoscaling-runner.yaml"
+                "charts/gha-runner-scale-set-controller/crds/autoscaling-listener.yaml"
+                "charts/gha-runner-scale-set-controller/crds/runner-set.yaml"
+                "charts/gha-runner-scale-set-controller/crds/runner-replication-controller.yaml"
+              ];
+            };
             # nextcloud = nixidy.packages.${system}.generators.fromCRD {
             #   name = "nextcloud";
             #   src = pkgs.fetchFromGitHub {
@@ -253,7 +268,7 @@
             program =
               (pkgs.writeShellScript "generate-modules" ''
                 set -eo pipefail
-                mkdir -p modules/cilium modules/grafana modules/nextcloud modules/ceph-csi modules/cert-manager modules/traefik modules/argo-cd modules/metallb modules/external-dns modules/gateway-api
+                mkdir -p modules/cilium modules/grafana modules/nextcloud modules/ceph-csi modules/cert-manager modules/traefik modules/argo-cd modules/metallb modules/external-dns modules/gateway-api modules/github-runner
                 cat ${self.packages.${system}.generators.cilium} > modules/cilium/generated.nix
                 cat ${self.packages.${system}.generators.prometheus} > modules/prometheus/generated.nix
                 cat ${self.packages.${system}.generators.grafana} > modules/grafana/generated.nix
@@ -266,6 +281,7 @@
                 cat ${self.packages.${system}.generators.metallb} > modules/metallb/generated.nix
                 cat ${self.packages.${system}.generators.external-dns} > modules/external-dns/generated.nix
                 cat ${self.packages.${system}.generators.gateway-api} > modules/gateway-api/generated.nix
+                cat ${self.packages.${system}.generators.github-runner} > modules/github-runner/generated.nix
                 # cat ${self.packages.${system}.generators.nextcloud} > modules/nextcloud/generated.nix
               '').outPath;
           };

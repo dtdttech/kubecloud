@@ -37,11 +37,13 @@ jobs:
         cd "${{ steps.build.outputs.out-path }}"
         \cp -r --parents * ../artifacts-clean/ 2>/dev/null || true
         
-        # Remove any files that still have colons (from symlinks)
-        find ../artifacts-clean/ -name "*:*" -delete
+        # Remove any files that still have colons (from symlinks) - only if directory exists and has files
+        if [ -d "../artifacts-clean" ] && [ "$(ls -A ../artifacts-clean 2>/dev/null)" ]; then
+          find ../artifacts-clean/ -name "*:*" -delete 2>/dev/null || true
+        fi
         
         echo "Cleaned artifacts directory:"
-        ls -la ../artifacts-clean/ | head -20
+        ls -la ../artifacts-clean/ | head -20 || echo "Directory is empty or doesn't exist"
         
     - name: Upload cleaned artifacts
       uses: actions/upload-artifact@v4
