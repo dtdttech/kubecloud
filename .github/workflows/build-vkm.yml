@@ -15,6 +15,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        submodules: recursive
 
     - name: Install Nix
       uses: cachix/install-nix-action@v31
@@ -25,8 +26,20 @@ jobs:
     - name: Build VKM profile with Nixidy
       uses: arnarg/nixidy/actions/build@main
       id: build
+      continue-on-error: false
       with:
         environment: .#vkm
+
+    - name: Debug build output
+      run: |
+        echo "Build output path: ${{ steps.build.outputs.out-path }}"
+        echo "Build result: ${{ steps.build.outputs.result }}"
+        if [ -n "${{ steps.build.outputs.out-path }}" ] && [ -d "${{ steps.build.outputs.out-path }}" ]; then
+          echo "Contents of build output:"
+          ls -la "${{ steps.build.outputs.out-path }}" || echo "Cannot list directory"
+        else
+          echo "Build output path does not exist or is not a directory"
+        fi
 
     - name: Prepare build artifacts
       run: |
@@ -63,7 +76,7 @@ jobs:
   deploy-vkm:
     needs: build-vkm
     runs-on: ubuntu-latest
-    if: success() && needs.build-vkm.result == 'success'
+    if: always() && needs.build-vkm.result == 'success' && !cancelled()
     steps:
     - name: Download build artifacts
       uses: actions/download-artifact@v4
