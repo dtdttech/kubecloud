@@ -18,6 +18,7 @@
     ./acme-dns
     ./zammad
     ./cert-manager
+    ./github-runner
     ./nginx
     ./samba
     # ./ceph-csi  # Moved to ./storage/ceph

@@ -77,7 +77,7 @@ let
     serviceAccount = {
       create = true;
       name = null;
-      annotations = cfg.serviceAccount.annotations or {};
+      annotations = cfg.serviceAccount.annotations or { };
     };
 
   } cfg.values;
@@ -100,82 +100,90 @@ let
       spec = {
         githubConfigUrl = scaleSet.githubConfigUrl or cfg.githubConfigUrl;
         githubConfigSecret = scaleSet.githubConfigSecret or cfg.githubConfigSecret;
-        
+
         # Runner template
         template = {
           spec = {
             repo = scaleSet.repository or null;
             org = scaleSet.organization or null;
-            labels = scaleSet.labels or [ "self-hosted" "linux" "x64" ];
+            labels =
+              scaleSet.labels or [
+                "self-hosted"
+                "linux"
+                "x64"
+              ];
             group = scaleSet.group or "default";
-            
+
             # Container configuration
             container = {
-              image = scaleSet.image or {
-                repository = "summerwind/actions-runner";
-                tag = "v2.328.0";
-                pullPolicy = "IfNotPresent";
-              };
-              
-              resources = scaleSet.resources or {
-                requests = {
-                  cpu = "100m";
-                  memory = "256Mi";
+              image =
+                scaleSet.image or {
+                  repository = "summerwind/actions-runner";
+                  tag = "v2.328.0";
+                  pullPolicy = "IfNotPresent";
                 };
-                limits = {
-                  cpu = "1000m";
-                  memory = "2Gi";
+
+              resources =
+                scaleSet.resources or {
+                  requests = {
+                    cpu = "100m";
+                    memory = "256Mi";
+                  };
+                  limits = {
+                    cpu = "1000m";
+                    memory = "2Gi";
+                  };
                 };
-              };
-              
-              env = scaleSet.env or [];
+
+              env = scaleSet.env or [ ];
             };
-            
+
             # Workdir volume
             workDir = {
-              emptyDir = {};
+              emptyDir = { };
             };
-            
+
             # Docker volume configuration (if needed)
             dockerdWithinRunnerContainer = scaleSet.dockerdWithinRunnerContainer or false;
-            
+
             # Security context
-            securityContext = scaleSet.securityContext or {
-              runAsNonRoot = true;
-              seccompProfile = {
-                type = "RuntimeDefault";
+            securityContext =
+              scaleSet.securityContext or {
+                runAsNonRoot = true;
+                seccompProfile = {
+                  type = "RuntimeDefault";
+                };
               };
-            };
-            
+
             # Service account
             serviceAccountName = scaleSet.serviceAccountName or "default";
-            
+
             # Node selector and tolerations
-            nodeSelector = scaleSet.nodeSelector or {};
-            tolerations = scaleSet.tolerations or [];
-            
+            nodeSelector = scaleSet.nodeSelector or { };
+            tolerations = scaleSet.tolerations or [ ];
+
             # Affinity
-            affinity = scaleSet.affinity or {};
+            affinity = scaleSet.affinity or { };
           };
         };
-        
+
         # Scale set configuration
         minRunners = scaleSet.minRunners or 1;
         maxRunners = scaleSet.maxRunners or 3;
         desiredRunners = scaleSet.desiredRunners or 1;
-        
+
         # Metrics and monitoring
         metricsPort = scaleSet.metricsPort or 8080;
-        
+
         # Stateful set configuration
-        statefulSetConfiguration = scaleSet.statefulSetConfiguration or {};
-        
+        statefulSetConfiguration = scaleSet.statefulSetConfiguration or { };
+
         # Ephemeral runner settings
         ephemeral = scaleSet.ephemeral or true;
-        
+
         # Graceful stopping timeout
         gracefulStoppingTimeout = scaleSet.gracefulStoppingTimeout or 3600;
-        
+
         # Maximum runner duration
         maxRunnerDuration = scaleSet.maxRunnerDuration or 86400;
       };
@@ -235,7 +243,11 @@ in
 
             labels = mkOption {
               type = types.listOf types.str;
-              default = [ "self-hosted" "linux" "x64" ];
+              default = [
+                "self-hosted"
+                "linux"
+                "x64"
+              ];
               description = "Labels for the runners";
             };
 
@@ -280,7 +292,11 @@ in
                     };
 
                     pullPolicy = mkOption {
-                      type = types.enum [ "Always" "IfNotPresent" "Never" ];
+                      type = types.enum [
+                        "Always"
+                        "IfNotPresent"
+                        "Never"
+                      ];
                       default = "IfNotPresent";
                       description = "Image pull policy";
                     };
@@ -428,7 +444,12 @@ in
       example = {
         default = {
           repository = "my-org/my-repo";
-          labels = [ "self-hosted" "linux" "x64" "docker" ];
+          labels = [
+            "self-hosted"
+            "linux"
+            "x64"
+            "docker"
+          ];
           minRunners = 1;
           maxRunners = 5;
           desiredRunners = 2;
@@ -505,7 +526,10 @@ in
                   "app.kubernetes.io/component" = "controller";
                 };
               };
-              policyTypes = [ "Ingress" "Egress" ];
+              policyTypes = [
+                "Ingress"
+                "Egress"
+              ];
               ingress = [
                 {
                   from = [
@@ -585,7 +609,10 @@ in
                   "app.kubernetes.io/component" = "listener";
                 };
               };
-              policyTypes = [ "Ingress" "Egress" ];
+              policyTypes = [
+                "Ingress"
+                "Egress"
+              ];
               ingress = [
                 {
                   from = [
@@ -672,24 +699,26 @@ in
     };
 
     # ServiceMonitor resources
-    monitoring.prometheus.servicemonitors = lib.mkIf (cfg.monitoring.enabled && cfg.monitoring.serviceMonitor.enabled) [
-      {
-        name = "github-runner-controller";
-        namespace = namespace;
-        selector = {
-          matchLabels = {
-            "app.kubernetes.io/name" = "actions-runner-controller";
-            "app.kubernetes.io/component" = "controller";
-          };
-        };
-        endpoints = [
+    monitoring.prometheus.servicemonitors =
+      lib.mkIf (cfg.monitoring.enabled && cfg.monitoring.serviceMonitor.enabled)
+        [
           {
-            port = "metrics";
-            interval = cfg.monitoring.serviceMonitor.interval;
-            path = "/metrics";
+            name = "github-runner-controller";
+            namespace = namespace;
+            selector = {
+              matchLabels = {
+                "app.kubernetes.io/name" = "actions-runner-controller";
+                "app.kubernetes.io/component" = "controller";
+              };
+            };
+            endpoints = [
+              {
+                port = "metrics";
+                interval = cfg.monitoring.serviceMonitor.interval;
+                path = "/metrics";
+              }
+            ];
           }
         ];
-      }
-    ];
   };
 }

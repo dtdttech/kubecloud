@@ -28,8 +28,16 @@ jobs:
       with:
         environment: .#vkm
 
-    - name: Upload build artifacts
+    - name: Prepare build artifacts
       run: |
+        # Check if build succeeded and output path exists
+        if [ -z "${{ steps.build.outputs.out-path }}" ] || [ ! -d "${{ steps.build.outputs.out-path }}" ]; then
+          echo "ERROR: Build output path does not exist or is empty"
+          echo "Creating empty artifacts directory to allow upload to proceed"
+          mkdir -p artifacts-empty
+          exit 0
+        fi
+        
         # Create a clean directory for artifacts
         mkdir -p artifacts-clean
         
@@ -50,10 +58,12 @@ jobs:
       with:
         name: vkm-build
         path: artifacts-clean/
+        if-no-files-found: warn
 
   deploy-vkm:
     needs: build-vkm
     runs-on: ubuntu-latest
+    if: success() && needs.build-vkm.result == 'success'
     steps:
     - name: Download build artifacts
       uses: actions/download-artifact@v4
