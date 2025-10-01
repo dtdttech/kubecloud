@@ -31,7 +31,8 @@ jobs:
     - name: Prepare manifests for upload
       run: |
         mkdir -p manifests
-        cp -r result/* manifests/
+        cp -rL result/* manifests/
+        find manifests -type f -name "*:*" -exec bash -c 'mv "$1" "${1//:/--}"' _ {} \;
         
     - name: Upload manifests as artifact
       uses: actions/upload-artifact@v4
