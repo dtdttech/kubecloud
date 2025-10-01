@@ -43,11 +43,11 @@ jobs:
         echo "Cleaned artifacts directory:"
         ls -la ../artifacts-clean/ | head -20
         
-      - name: Upload cleaned artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: vkm-build
-          path: artifacts-clean/
+    - name: Upload cleaned artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: vkm-build
+        path: artifacts-clean/
 
   deploy-vkm:
     needs: build-vkm
