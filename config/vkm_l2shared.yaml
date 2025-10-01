@@ -15,30 +15,30 @@ metadata:
 spec:
   ipAddressPools:
    - "vkm-shared"
----
-apiVersion: metallb.io/v1beta1
-kind: IPAddressPool
-metadata:
-  name: pool-k1
-  namespace: metallb-system
-spec:
-  addresses:
-  - 130.83.206.156/32
----
-apiVersion: metallb.io/v1beta1
-kind: IPAddressPool
-metadata:
-  name: pool-k2
-  namespace: metallb-system
-spec:
-  addresses:
-  - 130.83.206.158/32
----
-apiVersion: metallb.io/v1beta1
-kind: IPAddressPool
-metadata:
-  name: pool-k3
-  namespace: metallb-system
-spec:
-  addresses:
-  - 130.83.206.159/32
+# ---
+# apiVersion: metallb.io/v1beta1
+# kind: IPAddressPool
+# metadata:
+#   name: pool-k1
+#   namespace: metallb-system
+# spec:
+#   addresses:
+#   - 130.83.206.156/32
+# ---
+# apiVersion: metallb.io/v1beta1
+# kind: IPAddressPool
+# metadata:
+#   name: pool-k2
+#   namespace: metallb-system
+# spec:
+#   addresses:
+#   - 130.83.206.158/32
+# ---
+# apiVersion: metallb.io/v1beta1
+# kind: IPAddressPool
+# metadata:
+#   name: pool-k3
+#   namespace: metallb-system
+# spec:
+#   addresses:
+#   - 130.83.206.159/32
