@@ -697,28 +697,5 @@ in
         };
       };
     };
-
-    # ServiceMonitor resources
-    monitoring.prometheus.servicemonitors =
-      lib.mkIf (cfg.monitoring.enabled && cfg.monitoring.serviceMonitor.enabled)
-        [
-          {
-            name = "github-runner-controller";
-            namespace = namespace;
-            selector = {
-              matchLabels = {
-                "app.kubernetes.io/name" = "actions-runner-controller";
-                "app.kubernetes.io/component" = "controller";
-              };
-            };
-            endpoints = [
-              {
-                port = "metrics";
-                interval = cfg.monitoring.serviceMonitor.interval;
-                path = "/metrics";
-              }
-            ];
-          }
-        ];
   };
 }
