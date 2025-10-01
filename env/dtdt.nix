@@ -178,7 +178,7 @@
     };
   };
 
-  # Bookstack configuration for VKM
+  # Bookstack configuration for DTDT
   documentation.bookstack = {
     enable = true;
     domain = "wiki.vkm.dtdt.tech";
@@ -188,43 +188,21 @@
       user = "bookstack_vkm";
       password = "secure_password_here";
     };
+    app = {
+      key = "base64:H+eX8SaXwaCTY7jKDfXDfm2NvGV9RkSKzGHvwdHvz/w=";
+    };
     storage = {
       provider = "longhorn"; # Use Longhorn storage
       database.size = "10Gi";
       config.size = "5Gi";
-      uploads.size = "20Gi";
     };
-    ingress = {
-      enable = true;
-      tls = true;
-      annotations = {
-        "cert-manager.io/cluster-issuer" = "letsencrypt-prod";
-        "nginx.ingress.kubernetes.io/ssl-redirect" = "true";
-        "nginx.ingress.kubernetes.io/force-ssl-redirect" = "true";
-        "nginx.ingress.kubernetes.io/enable-gzip" = "true";
-      };
-    };
-    resources = {
-      requests = {
-        memory = "256Mi";
-        cpu = "200m";
-      };
-      limits = {
-        memory = "512Mi";
-        cpu = "500m";
-      };
-    };
-    monitoring = {
-      enabled = true;
-      serviceMonitor = {
-        enabled = true;
-        interval = "30s";
-      };
+    secrets = {
+      provider = "external";
     };
   };
 
-  # Zammad configuration for VKM
-  helpdesk.zammad = {
+  # Zammad configuration for DTDT
+  support.zammad = {
     enable = true;
     domain = "help.vkm.dtdt.tech";
     timezone = "America/New_York";
@@ -233,48 +211,8 @@
       user = "zammad_vkm";
       password = "secure_password_here";
     };
-    storage = {
-      provider = "longhorn"; # Use Longhorn storage
-      database.size = "15Gi";
-      config.size = "5Gi";
-      uploads.size = "30Gi";
-    };
-    ingress = {
-      enable = true;
-      tls = true;
-      annotations = {
-        "cert-manager.io/cluster-issuer" = "letsencrypt-prod";
-        "nginx.ingress.kubernetes.io/ssl-redirect" = "true";
-        "nginx.ingress.kubernetes.io/force-ssl-redirect" = "true";
-        "nginx.ingress.kubernetes.io/enable-gzip" = "true";
-      };
-    };
-    resources = {
-      requests = {
-        memory = "512Mi";
-        cpu = "500m";
-      };
-      limits = {
-        memory = "2Gi";
-        cpu = "1000m";
-      };
-    };
-    monitoring = {
+    elasticsearch = {
       enabled = true;
-      serviceMonitor = {
-        enabled = true;
-        interval = "30s";
-      };
-    };
-    features = {
-      chat = true;
-      knowledgeBase = true;
-      ticketSubmission = true;
-    };
-    backup = {
-      enabled = true;
-      schedule = "0 2 * * *"; # Daily at 2 AM
-      retention = "7d";
     };
   };
 
