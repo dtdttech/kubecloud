@@ -32,7 +32,7 @@ jobs:
       run: |
         mkdir -p manifests
         cp -rL result/* manifests/
-        find manifests -type f -name "*:*" -exec bash -c 'mv "$1" "${1//:/--}"' _ {} \;
+        find manifests -type f -name "*:*" -exec bash -c 'cp "$1" "${1//:/--}" && rm "$1"' _ {} \;
         
     - name: Upload manifests as artifact
       uses: actions/upload-artifact@v4
