@@ -43,16 +43,14 @@ let
         threshold = 3;
       };
     };
-  }
-  // lib.optionalAttrs cfg.auth.enabled {
+  } // lib.optionalAttrs cfg.auth.enabled {
     auth = {
       htpasswd = {
         realm = "Registry Realm";
         path = "/auth/htpasswd";
       };
     };
-  }
-  // lib.optionalAttrs cfg.proxy.enabled {
+  } // lib.optionalAttrs cfg.proxy.enabled {
     proxy = {
       remoteurl = cfg.proxy.remoteUrl;
       username = cfg.proxy.username;
