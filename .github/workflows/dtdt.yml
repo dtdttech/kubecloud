@@ -39,7 +39,7 @@ jobs:
       with:
         name: dtdt-kubernetes-manifests
         path: manifests/
-        retention-days: 30
+        retention-days: 7
 
   deploy:
     if: github.ref == 'refs/heads/master'
@@ -88,10 +88,7 @@ jobs:
         if [[ -n $(git status --porcelain) ]]; then
           git add .
           git commit -m "Update DTDT manifests from kubecloud@${{ github.sha }}
-          
-          🤖 Generated with [Claude Code](https://claude.ai/code)
-          
-          Co-Authored-By: Claude <noreply@anthropic.com>"
+          Authored-By: dtdttech <commit@dtdt.tech>"
           git push
         else
           echo "No changes to commit"

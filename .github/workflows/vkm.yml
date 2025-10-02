@@ -1,4 +1,4 @@
-name: Build and Deploy Nixidy Manifests
+name: Build and Deploy VKM Nixidy Manifests
 
 on:
   push:
@@ -37,9 +37,9 @@ jobs:
     - name: Upload manifests as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: kubernetes-manifests
+        name: vkm-kubernetes-manifests
         path: manifests/
-        retention-days: 30
+        retention-days: 7
 
   deploy:
     if: github.ref == 'refs/heads/master'
@@ -55,7 +55,7 @@ jobs:
     - name: Download manifests artifact
       uses: actions/download-artifact@v4
       with:
-        name: kubernetes-manifests
+        name: vkm-kubernetes-manifests
         path: manifests/
         
     - name: Checkout rendered repository
@@ -87,11 +87,8 @@ jobs:
         # Check if there are changes
         if [[ -n $(git status --porcelain) ]]; then
           git add .
-          git commit -m "Update manifests from kubecloud@${{ github.sha }}
-          
-          🤖 Generated with [Claude Code](https://claude.ai/code)
-          
-          Co-Authored-By: Claude <noreply@anthropic.com>"
+          git commit -m "Update VKM manifests from kubecloud@${{ github.sha }}
+          Authored-By: dtdttech <commit@dtdt.tech>"
           git push
         else
           echo "No changes to commit"
