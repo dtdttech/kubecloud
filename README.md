@@ -20,8 +20,8 @@ This project provides a comprehensive Kubernetes stack with:
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          │               ┌───────▼───────┐               │
-         │               │   Nixidy     │               │
-         │               │   Generator  │               │
+         │               │   Nixidy      │               │
+         │               │   Generator   │               │
          │               └───────────────┘               │
          │                       │                       │
          └───────────────────────┼───────────────────────┘
