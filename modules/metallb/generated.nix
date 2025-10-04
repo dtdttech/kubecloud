@@ -5,157 +5,175 @@
   config,
   ...
 }:
-with lib; let
+with lib;
+let
   hasAttrNotNull = attr: set: hasAttr attr set && set.${attr} != null;
 
-  attrsToList = values:
-    if values != null
-    then
+  attrsToList =
+    values:
+    if values != null then
       sort (
         a: b:
-          if (hasAttrNotNull "_priority" a && hasAttrNotNull "_priority" b)
-          then a._priority < b._priority
-          else false
+        if (hasAttrNotNull "_priority" a && hasAttrNotNull "_priority" b) then
+          a._priority < b._priority
+        else
+          false
       ) (mapAttrsToList (n: v: v) values)
-    else values;
+    else
+      values;
 
-  getDefaults = resource: group: version: kind:
-    catAttrs "default" (filter (
+  getDefaults =
+    resource: group: version: kind:
+    catAttrs "default" (
+      filter (
         default:
-          (default.resource == null || default.resource == resource)
-          && (default.group == null || default.group == group)
-          && (default.version == null || default.version == version)
-          && (default.kind == null || default.kind == kind)
-      )
-      config.defaults);
+        (default.resource == null || default.resource == resource)
+        && (default.group == null || default.group == group)
+        && (default.version == null || default.version == version)
+        && (default.kind == null || default.kind == kind)
+      ) config.defaults
+    );
 
-  types =
-    lib.types
-    // rec {
-      str = mkOptionType {
-        name = "str";
-        description = "string";
-        check = isString;
-        merge = mergeEqualOption;
-      };
-
-      # Either value of type `finalType` or `coercedType`, the latter is
-      # converted to `finalType` using `coerceFunc`.
-      coercedTo = coercedType: coerceFunc: finalType:
-        mkOptionType rec {
-          inherit (finalType) getSubOptions getSubModules;
-
-          name = "coercedTo";
-          description = "${finalType.description} or ${coercedType.description}";
-          check = x: finalType.check x || coercedType.check x;
-          merge = loc: defs: let
-            coerceVal = val:
-              if finalType.check val
-              then val
-              else let
-                coerced = coerceFunc val;
-              in
-                assert finalType.check coerced; coerced;
-          in
-            finalType.merge loc (map (def: def // {value = coerceVal def.value;}) defs);
-          substSubModules = m: coercedTo coercedType coerceFunc (finalType.substSubModules m);
-          typeMerge = t1: t2: null;
-          functor = (defaultFunctor name) // {wrapped = finalType;};
-        };
+  types = lib.types // rec {
+    str = mkOptionType {
+      name = "str";
+      description = "string";
+      check = isString;
+      merge = mergeEqualOption;
     };
+
+    # Either value of type `finalType` or `coercedType`, the latter is
+    # converted to `finalType` using `coerceFunc`.
+    coercedTo =
+      coercedType: coerceFunc: finalType:
+      mkOptionType rec {
+        inherit (finalType) getSubOptions getSubModules;
+
+        name = "coercedTo";
+        description = "${finalType.description} or ${coercedType.description}";
+        check = x: finalType.check x || coercedType.check x;
+        merge =
+          loc: defs:
+          let
+            coerceVal =
+              val:
+              if finalType.check val then
+                val
+              else
+                let
+                  coerced = coerceFunc val;
+                in
+                assert finalType.check coerced;
+                coerced;
+          in
+          finalType.merge loc (map (def: def // { value = coerceVal def.value; }) defs);
+        substSubModules = m: coercedTo coercedType coerceFunc (finalType.substSubModules m);
+        typeMerge = t1: t2: null;
+        functor = (defaultFunctor name) // {
+          wrapped = finalType;
+        };
+      };
+  };
 
   mkOptionDefault = mkOverride 1001;
 
-  mergeValuesByKey = attrMergeKey: listMergeKeys: values:
-    listToAttrs (imap0
-      (i: value:
+  mergeValuesByKey =
+    attrMergeKey: listMergeKeys: values:
+    listToAttrs (
+      imap0 (
+        i: value:
         nameValuePair (
-          if hasAttr attrMergeKey value
-          then
-            if isAttrs value.${attrMergeKey}
-            then toString value.${attrMergeKey}.content
-            else (toString value.${attrMergeKey})
+          if hasAttr attrMergeKey value then
+            if isAttrs value.${attrMergeKey} then
+              toString value.${attrMergeKey}.content
+            else
+              (toString value.${attrMergeKey})
           else
             # generate merge key for list elements if it's not present
             "__kubenix_list_merge_key_"
-            + (concatStringsSep "" (map (
-                key:
-                  if isAttrs value.${key}
-                  then toString value.${key}.content
-                  else (toString value.${key})
-              )
-              listMergeKeys))
-        ) (value // {_priority = i;}))
-      values);
+            + (concatStringsSep "" (
+              map (
+                key: if isAttrs value.${key} then toString value.${key}.content else (toString value.${key})
+              ) listMergeKeys
+            ))
+        ) (value // { _priority = i; })
+      ) values
+    );
 
-  submoduleOf = ref:
-    types.submodule ({name, ...}: {
-      options = definitions."${ref}".options or {};
-      config = definitions."${ref}".config or {};
-    });
+  submoduleOf =
+    ref:
+    types.submodule (
+      { name, ... }:
+      {
+        options = definitions."${ref}".options or { };
+        config = definitions."${ref}".config or { };
+      }
+    );
 
-  globalSubmoduleOf = ref:
-    types.submodule ({name, ...}: {
-      options = config.definitions."${ref}".options or {};
-      config = config.definitions."${ref}".config or {};
-    });
+  globalSubmoduleOf =
+    ref:
+    types.submodule (
+      { name, ... }:
+      {
+        options = config.definitions."${ref}".options or { };
+        config = config.definitions."${ref}".config or { };
+      }
+    );
 
-  submoduleWithMergeOf = ref: mergeKey:
-    types.submodule ({name, ...}: let
-      convertName = name:
-        if definitions."${ref}".options.${mergeKey}.type == types.int
-        then toInt name
-        else name;
-    in {
-      options =
-        definitions."${ref}".options
-        // {
+  submoduleWithMergeOf =
+    ref: mergeKey:
+    types.submodule (
+      { name, ... }:
+      let
+        convertName =
+          name: if definitions."${ref}".options.${mergeKey}.type == types.int then toInt name else name;
+      in
+      {
+        options = definitions."${ref}".options // {
           # position in original array
           _priority = mkOption {
             type = types.nullOr types.int;
             default = null;
           };
         };
-      config =
-        definitions."${ref}".config
-        // {
+        config = definitions."${ref}".config // {
           ${mergeKey} = mkOverride 1002 (
             # use name as mergeKey only if it is not coming from mergeValuesByKey
-            if (!hasPrefix "__kubenix_list_merge_key_" name)
-            then convertName name
-            else null
+            if (!hasPrefix "__kubenix_list_merge_key_" name) then convertName name else null
           );
         };
-    });
+      }
+    );
 
-  submoduleForDefinition = ref: resource: kind: group: version: let
-    apiVersion =
-      if group == "core"
-      then version
-      else "${group}/${version}";
-  in
-    types.submodule ({name, ...}: {
-      inherit (definitions."${ref}") options;
+  submoduleForDefinition =
+    ref: resource: kind: group: version:
+    let
+      apiVersion = if group == "core" then version else "${group}/${version}";
+    in
+    types.submodule (
+      { name, ... }:
+      {
+        inherit (definitions."${ref}") options;
 
-      imports = getDefaults resource group version kind;
-      config = mkMerge [
-        definitions."${ref}".config
-        {
-          kind = mkOptionDefault kind;
-          apiVersion = mkOptionDefault apiVersion;
+        imports = getDefaults resource group version kind;
+        config = mkMerge [
+          definitions."${ref}".config
+          {
+            kind = mkOptionDefault kind;
+            apiVersion = mkOptionDefault apiVersion;
 
-          # metdata.name cannot use option default, due deep config
-          metadata.name = mkOptionDefault name;
-        }
-      ];
-    });
+            # metdata.name cannot use option default, due deep config
+            metadata.name = mkOptionDefault name;
+          }
+        ];
+      }
+    );
 
-  coerceAttrsOfSubmodulesToListByKey = ref: attrMergeKey: listMergeKeys: (
-    types.coercedTo
-    (types.listOf (submoduleOf ref))
-    (mergeValuesByKey attrMergeKey listMergeKeys)
-    (types.attrsOf (submoduleWithMergeOf ref attrMergeKey))
-  );
+  coerceAttrsOfSubmodulesToListByKey =
+    ref: attrMergeKey: listMergeKeys:
+    (types.coercedTo (types.listOf (submoduleOf ref)) (mergeValuesByKey attrMergeKey listMergeKeys) (
+      types.attrsOf (submoduleWithMergeOf ref attrMergeKey)
+    ));
 
   definitions = {
     "metallb.io.v1beta1.BFDProfile" = {
@@ -280,7 +298,9 @@ with lib; let
         };
         "ipAddressPoolSelectors" = mkOption {
           description = "A selector for the IPAddressPools which would get advertised via this advertisement.\nIf no IPAddressPool is selected by this or by the list, the advertisement is applied to all the IPAddressPools.";
-          type = types.nullOr (types.listOf (submoduleOf "metallb.io.v1beta1.BGPAdvertisementSpecIpAddressPoolSelectors"));
+          type = types.nullOr (
+            types.listOf (submoduleOf "metallb.io.v1beta1.BGPAdvertisementSpecIpAddressPoolSelectors")
+          );
         };
         "ipAddressPools" = mkOption {
           description = "The list of IPAddressPools to advertise via this advertisement, selected by name.";
@@ -292,7 +312,9 @@ with lib; let
         };
         "nodeSelectors" = mkOption {
           description = "NodeSelectors allows to limit the nodes to announce as next hops for the LoadBalancer IP. When empty, all the nodes having  are announced as next hops.";
-          type = types.nullOr (types.listOf (submoduleOf "metallb.io.v1beta1.BGPAdvertisementSpecNodeSelectors"));
+          type = types.nullOr (
+            types.listOf (submoduleOf "metallb.io.v1beta1.BGPAdvertisementSpecNodeSelectors")
+          );
         };
         "peers" = mkOption {
           description = "Peers limits the bgppeer to advertise the ips of the selected pools to.\nWhen empty, the loadbalancer IP is announced to all the BGPPeers configured.";
@@ -315,7 +337,11 @@ with lib; let
       options = {
         "matchExpressions" = mkOption {
           description = "matchExpressions is a list of label selector requirements. The requirements are ANDed.";
-          type = types.nullOr (types.listOf (submoduleOf "metallb.io.v1beta1.BGPAdvertisementSpecIpAddressPoolSelectorsMatchExpressions"));
+          type = types.nullOr (
+            types.listOf (
+              submoduleOf "metallb.io.v1beta1.BGPAdvertisementSpecIpAddressPoolSelectorsMatchExpressions"
+            )
+          );
         };
         "matchLabels" = mkOption {
           description = "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.";
@@ -352,7 +378,9 @@ with lib; let
       options = {
         "matchExpressions" = mkOption {
           description = "matchExpressions is a list of label selector requirements. The requirements are ANDed.";
-          type = types.nullOr (types.listOf (submoduleOf "metallb.io.v1beta1.BGPAdvertisementSpecNodeSelectorsMatchExpressions"));
+          type = types.nullOr (
+            types.listOf (submoduleOf "metallb.io.v1beta1.BGPAdvertisementSpecNodeSelectorsMatchExpressions")
+          );
         };
         "matchLabels" = mkOption {
           description = "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.";
@@ -421,7 +449,9 @@ with lib; let
       options = {
         "communities" = mkOption {
           description = "";
-          type = types.nullOr (coerceAttrsOfSubmodulesToListByKey "metallb.io.v1beta1.CommunitySpecCommunities" "name" []);
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "metallb.io.v1beta1.CommunitySpecCommunities" "name" [ ]
+          );
           apply = attrsToList;
         };
       };
@@ -508,7 +538,9 @@ with lib; let
       options = {
         "namespaceSelectors" = mkOption {
           description = "NamespaceSelectors list of label selectors to select namespace(s) for ip pool,\nan alternative to using namespace list.";
-          type = types.nullOr (types.listOf (submoduleOf "metallb.io.v1beta1.IPAddressPoolSpecServiceAllocationNamespaceSelectors"));
+          type = types.nullOr (
+            types.listOf (submoduleOf "metallb.io.v1beta1.IPAddressPoolSpecServiceAllocationNamespaceSelectors")
+          );
         };
         "namespaces" = mkOption {
           description = "Namespaces list of namespace(s) on which ip pool can be attached.";
@@ -520,7 +552,9 @@ with lib; let
         };
         "serviceSelectors" = mkOption {
           description = "ServiceSelectors list of label selector to select service(s) for which ip pool\ncan be used for ip allocation.";
-          type = types.nullOr (types.listOf (submoduleOf "metallb.io.v1beta1.IPAddressPoolSpecServiceAllocationServiceSelectors"));
+          type = types.nullOr (
+            types.listOf (submoduleOf "metallb.io.v1beta1.IPAddressPoolSpecServiceAllocationServiceSelectors")
+          );
         };
       };
 
@@ -535,7 +569,11 @@ with lib; let
       options = {
         "matchExpressions" = mkOption {
           description = "matchExpressions is a list of label selector requirements. The requirements are ANDed.";
-          type = types.nullOr (types.listOf (submoduleOf "metallb.io.v1beta1.IPAddressPoolSpecServiceAllocationNamespaceSelectorsMatchExpressions"));
+          type = types.nullOr (
+            types.listOf (
+              submoduleOf "metallb.io.v1beta1.IPAddressPoolSpecServiceAllocationNamespaceSelectorsMatchExpressions"
+            )
+          );
         };
         "matchLabels" = mkOption {
           description = "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.";
@@ -572,7 +610,11 @@ with lib; let
       options = {
         "matchExpressions" = mkOption {
           description = "matchExpressions is a list of label selector requirements. The requirements are ANDed.";
-          type = types.nullOr (types.listOf (submoduleOf "metallb.io.v1beta1.IPAddressPoolSpecServiceAllocationServiceSelectorsMatchExpressions"));
+          type = types.nullOr (
+            types.listOf (
+              submoduleOf "metallb.io.v1beta1.IPAddressPoolSpecServiceAllocationServiceSelectorsMatchExpressions"
+            )
+          );
         };
         "matchLabels" = mkOption {
           description = "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.";
@@ -625,7 +667,7 @@ with lib; let
         };
       };
 
-      config = {};
+      config = { };
     };
     "metallb.io.v1beta1.L2Advertisement" = {
       options = {
@@ -667,7 +709,9 @@ with lib; let
         };
         "ipAddressPoolSelectors" = mkOption {
           description = "A selector for the IPAddressPools which would get advertised via this advertisement.\nIf no IPAddressPool is selected by this or by the list, the advertisement is applied to all the IPAddressPools.";
-          type = types.nullOr (types.listOf (submoduleOf "metallb.io.v1beta1.L2AdvertisementSpecIpAddressPoolSelectors"));
+          type = types.nullOr (
+            types.listOf (submoduleOf "metallb.io.v1beta1.L2AdvertisementSpecIpAddressPoolSelectors")
+          );
         };
         "ipAddressPools" = mkOption {
           description = "The list of IPAddressPools to advertise via this advertisement, selected by name.";
@@ -675,7 +719,9 @@ with lib; let
         };
         "nodeSelectors" = mkOption {
           description = "NodeSelectors allows to limit the nodes to announce as next hops for the LoadBalancer IP. When empty, all the nodes having  are announced as next hops.";
-          type = types.nullOr (types.listOf (submoduleOf "metallb.io.v1beta1.L2AdvertisementSpecNodeSelectors"));
+          type = types.nullOr (
+            types.listOf (submoduleOf "metallb.io.v1beta1.L2AdvertisementSpecNodeSelectors")
+          );
         };
       };
 
@@ -690,7 +736,11 @@ with lib; let
       options = {
         "matchExpressions" = mkOption {
           description = "matchExpressions is a list of label selector requirements. The requirements are ANDed.";
-          type = types.nullOr (types.listOf (submoduleOf "metallb.io.v1beta1.L2AdvertisementSpecIpAddressPoolSelectorsMatchExpressions"));
+          type = types.nullOr (
+            types.listOf (
+              submoduleOf "metallb.io.v1beta1.L2AdvertisementSpecIpAddressPoolSelectorsMatchExpressions"
+            )
+          );
         };
         "matchLabels" = mkOption {
           description = "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.";
@@ -727,7 +777,9 @@ with lib; let
       options = {
         "matchExpressions" = mkOption {
           description = "matchExpressions is a list of label selector requirements. The requirements are ANDed.";
-          type = types.nullOr (types.listOf (submoduleOf "metallb.io.v1beta1.L2AdvertisementSpecNodeSelectorsMatchExpressions"));
+          type = types.nullOr (
+            types.listOf (submoduleOf "metallb.io.v1beta1.L2AdvertisementSpecNodeSelectorsMatchExpressions")
+          );
         };
         "matchLabels" = mkOption {
           description = "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.";
@@ -855,7 +907,9 @@ with lib; let
       options = {
         "interfaces" = mkOption {
           description = "Interfaces indicates the interfaces that receive the directed traffic";
-          type = types.nullOr (coerceAttrsOfSubmodulesToListByKey "metallb.io.v1beta1.ServiceL2StatusStatusInterfaces" "name" []);
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "metallb.io.v1beta1.ServiceL2StatusStatusInterfaces" "name" [ ]
+          );
           apply = attrsToList;
         };
         "node" = mkOption {
@@ -1033,7 +1087,9 @@ with lib; let
       options = {
         "matchExpressions" = mkOption {
           description = "matchExpressions is a list of label selector requirements. The requirements are ANDed.";
-          type = types.nullOr (types.listOf (submoduleOf "metallb.io.v1beta2.BGPPeerSpecNodeSelectorsMatchExpressions"));
+          type = types.nullOr (
+            types.listOf (submoduleOf "metallb.io.v1beta2.BGPPeerSpecNodeSelectorsMatchExpressions")
+          );
         };
         "matchLabels" = mkOption {
           description = "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.";
@@ -1084,94 +1140,150 @@ with lib; let
       };
     };
   };
-in {
+in
+{
   # all resource versions
   options = {
-    resources =
-      {
-        "metallb.io"."v1beta1"."BFDProfile" = mkOption {
-          description = "BFDProfile represents the settings of the bfd session that can be\noptionally associated with a BGP session.";
-          type = types.attrsOf (submoduleForDefinition "metallb.io.v1beta1.BFDProfile" "bfdprofiles" "BFDProfile" "metallb.io" "v1beta1");
-          default = {};
-        };
-        "metallb.io"."v1beta1"."BGPAdvertisement" = mkOption {
-          description = "BGPAdvertisement allows to advertise the IPs coming\nfrom the selected IPAddressPools via BGP, setting the parameters of the\nBGP Advertisement.";
-          type = types.attrsOf (submoduleForDefinition "metallb.io.v1beta1.BGPAdvertisement" "bgpadvertisements" "BGPAdvertisement" "metallb.io" "v1beta1");
-          default = {};
-        };
-        "metallb.io"."v1beta1"."Community" = mkOption {
-          description = "Community is a collection of aliases for communities.\nUsers can define named aliases to be used in the BGPPeer CRD.";
-          type = types.attrsOf (submoduleForDefinition "metallb.io.v1beta1.Community" "communities" "Community" "metallb.io" "v1beta1");
-          default = {};
-        };
-        "metallb.io"."v1beta1"."IPAddressPool" = mkOption {
-          description = "IPAddressPool represents a pool of IP addresses that can be allocated\nto LoadBalancer services.";
-          type = types.attrsOf (submoduleForDefinition "metallb.io.v1beta1.IPAddressPool" "ipaddresspools" "IPAddressPool" "metallb.io" "v1beta1");
-          default = {};
-        };
-        "metallb.io"."v1beta1"."L2Advertisement" = mkOption {
-          description = "L2Advertisement allows to advertise the LoadBalancer IPs provided\nby the selected pools via L2.";
-          type = types.attrsOf (submoduleForDefinition "metallb.io.v1beta1.L2Advertisement" "l2advertisements" "L2Advertisement" "metallb.io" "v1beta1");
-          default = {};
-        };
-        "metallb.io"."v1beta1"."ServiceBGPStatus" = mkOption {
-          description = "ServiceBGPStatus exposes the BGP peers a service is configured to be advertised to, per relevant node.";
-          type = types.attrsOf (submoduleForDefinition "metallb.io.v1beta1.ServiceBGPStatus" "servicebgpstatuses" "ServiceBGPStatus" "metallb.io" "v1beta1");
-          default = {};
-        };
-        "metallb.io"."v1beta1"."ServiceL2Status" = mkOption {
-          description = "ServiceL2Status reveals the actual traffic status of loadbalancer services in layer2 mode.";
-          type = types.attrsOf (submoduleForDefinition "metallb.io.v1beta1.ServiceL2Status" "servicel2statuses" "ServiceL2Status" "metallb.io" "v1beta1");
-          default = {};
-        };
-        "metallb.io"."v1beta2"."BGPPeer" = mkOption {
-          description = "BGPPeer is the Schema for the peers API.";
-          type = types.attrsOf (submoduleForDefinition "metallb.io.v1beta2.BGPPeer" "bgppeers" "BGPPeer" "metallb.io" "v1beta2");
-          default = {};
-        };
-      }
-      // {
-        "bfdProfiles" = mkOption {
-          description = "BFDProfile represents the settings of the bfd session that can be\noptionally associated with a BGP session.";
-          type = types.attrsOf (submoduleForDefinition "metallb.io.v1beta1.BFDProfile" "bfdprofiles" "BFDProfile" "metallb.io" "v1beta1");
-          default = {};
-        };
-        "bgpAdvertisements" = mkOption {
-          description = "BGPAdvertisement allows to advertise the IPs coming\nfrom the selected IPAddressPools via BGP, setting the parameters of the\nBGP Advertisement.";
-          type = types.attrsOf (submoduleForDefinition "metallb.io.v1beta1.BGPAdvertisement" "bgpadvertisements" "BGPAdvertisement" "metallb.io" "v1beta1");
-          default = {};
-        };
-        "bgpPeers" = mkOption {
-          description = "BGPPeer is the Schema for the peers API.";
-          type = types.attrsOf (submoduleForDefinition "metallb.io.v1beta2.BGPPeer" "bgppeers" "BGPPeer" "metallb.io" "v1beta2");
-          default = {};
-        };
-        "communities" = mkOption {
-          description = "Community is a collection of aliases for communities.\nUsers can define named aliases to be used in the BGPPeer CRD.";
-          type = types.attrsOf (submoduleForDefinition "metallb.io.v1beta1.Community" "communities" "Community" "metallb.io" "v1beta1");
-          default = {};
-        };
-        "ipAddressPools" = mkOption {
-          description = "IPAddressPool represents a pool of IP addresses that can be allocated\nto LoadBalancer services.";
-          type = types.attrsOf (submoduleForDefinition "metallb.io.v1beta1.IPAddressPool" "ipaddresspools" "IPAddressPool" "metallb.io" "v1beta1");
-          default = {};
-        };
-        "l2Advertisements" = mkOption {
-          description = "L2Advertisement allows to advertise the LoadBalancer IPs provided\nby the selected pools via L2.";
-          type = types.attrsOf (submoduleForDefinition "metallb.io.v1beta1.L2Advertisement" "l2advertisements" "L2Advertisement" "metallb.io" "v1beta1");
-          default = {};
-        };
-        "serviceBGPStatuses" = mkOption {
-          description = "ServiceBGPStatus exposes the BGP peers a service is configured to be advertised to, per relevant node.";
-          type = types.attrsOf (submoduleForDefinition "metallb.io.v1beta1.ServiceBGPStatus" "servicebgpstatuses" "ServiceBGPStatus" "metallb.io" "v1beta1");
-          default = {};
-        };
-        "serviceL2Statuses" = mkOption {
-          description = "ServiceL2Status reveals the actual traffic status of loadbalancer services in layer2 mode.";
-          type = types.attrsOf (submoduleForDefinition "metallb.io.v1beta1.ServiceL2Status" "servicel2statuses" "ServiceL2Status" "metallb.io" "v1beta1");
-          default = {};
-        };
+    resources = {
+      "metallb.io"."v1beta1"."BFDProfile" = mkOption {
+        description = "BFDProfile represents the settings of the bfd session that can be\noptionally associated with a BGP session.";
+        type = types.attrsOf (
+          submoduleForDefinition "metallb.io.v1beta1.BFDProfile" "bfdprofiles" "BFDProfile" "metallb.io"
+            "v1beta1"
+        );
+        default = { };
       };
+      "metallb.io"."v1beta1"."BGPAdvertisement" = mkOption {
+        description = "BGPAdvertisement allows to advertise the IPs coming\nfrom the selected IPAddressPools via BGP, setting the parameters of the\nBGP Advertisement.";
+        type = types.attrsOf (
+          submoduleForDefinition "metallb.io.v1beta1.BGPAdvertisement" "bgpadvertisements" "BGPAdvertisement"
+            "metallb.io"
+            "v1beta1"
+        );
+        default = { };
+      };
+      "metallb.io"."v1beta1"."Community" = mkOption {
+        description = "Community is a collection of aliases for communities.\nUsers can define named aliases to be used in the BGPPeer CRD.";
+        type = types.attrsOf (
+          submoduleForDefinition "metallb.io.v1beta1.Community" "communities" "Community" "metallb.io"
+            "v1beta1"
+        );
+        default = { };
+      };
+      "metallb.io"."v1beta1"."IPAddressPool" = mkOption {
+        description = "IPAddressPool represents a pool of IP addresses that can be allocated\nto LoadBalancer services.";
+        type = types.attrsOf (
+          submoduleForDefinition "metallb.io.v1beta1.IPAddressPool" "ipaddresspools" "IPAddressPool"
+            "metallb.io"
+            "v1beta1"
+        );
+        default = { };
+      };
+      "metallb.io"."v1beta1"."L2Advertisement" = mkOption {
+        description = "L2Advertisement allows to advertise the LoadBalancer IPs provided\nby the selected pools via L2.";
+        type = types.attrsOf (
+          submoduleForDefinition "metallb.io.v1beta1.L2Advertisement" "l2advertisements" "L2Advertisement"
+            "metallb.io"
+            "v1beta1"
+        );
+        default = { };
+      };
+      "metallb.io"."v1beta1"."ServiceBGPStatus" = mkOption {
+        description = "ServiceBGPStatus exposes the BGP peers a service is configured to be advertised to, per relevant node.";
+        type = types.attrsOf (
+          submoduleForDefinition "metallb.io.v1beta1.ServiceBGPStatus" "servicebgpstatuses" "ServiceBGPStatus"
+            "metallb.io"
+            "v1beta1"
+        );
+        default = { };
+      };
+      "metallb.io"."v1beta1"."ServiceL2Status" = mkOption {
+        description = "ServiceL2Status reveals the actual traffic status of loadbalancer services in layer2 mode.";
+        type = types.attrsOf (
+          submoduleForDefinition "metallb.io.v1beta1.ServiceL2Status" "servicel2statuses" "ServiceL2Status"
+            "metallb.io"
+            "v1beta1"
+        );
+        default = { };
+      };
+      "metallb.io"."v1beta2"."BGPPeer" = mkOption {
+        description = "BGPPeer is the Schema for the peers API.";
+        type = types.attrsOf (
+          submoduleForDefinition "metallb.io.v1beta2.BGPPeer" "bgppeers" "BGPPeer" "metallb.io" "v1beta2"
+        );
+        default = { };
+      };
+    }
+    // {
+      "bfdProfiles" = mkOption {
+        description = "BFDProfile represents the settings of the bfd session that can be\noptionally associated with a BGP session.";
+        type = types.attrsOf (
+          submoduleForDefinition "metallb.io.v1beta1.BFDProfile" "bfdprofiles" "BFDProfile" "metallb.io"
+            "v1beta1"
+        );
+        default = { };
+      };
+      "bgpAdvertisements" = mkOption {
+        description = "BGPAdvertisement allows to advertise the IPs coming\nfrom the selected IPAddressPools via BGP, setting the parameters of the\nBGP Advertisement.";
+        type = types.attrsOf (
+          submoduleForDefinition "metallb.io.v1beta1.BGPAdvertisement" "bgpadvertisements" "BGPAdvertisement"
+            "metallb.io"
+            "v1beta1"
+        );
+        default = { };
+      };
+      "bgpPeers" = mkOption {
+        description = "BGPPeer is the Schema for the peers API.";
+        type = types.attrsOf (
+          submoduleForDefinition "metallb.io.v1beta2.BGPPeer" "bgppeers" "BGPPeer" "metallb.io" "v1beta2"
+        );
+        default = { };
+      };
+      "communities" = mkOption {
+        description = "Community is a collection of aliases for communities.\nUsers can define named aliases to be used in the BGPPeer CRD.";
+        type = types.attrsOf (
+          submoduleForDefinition "metallb.io.v1beta1.Community" "communities" "Community" "metallb.io"
+            "v1beta1"
+        );
+        default = { };
+      };
+      "ipAddressPools" = mkOption {
+        description = "IPAddressPool represents a pool of IP addresses that can be allocated\nto LoadBalancer services.";
+        type = types.attrsOf (
+          submoduleForDefinition "metallb.io.v1beta1.IPAddressPool" "ipaddresspools" "IPAddressPool"
+            "metallb.io"
+            "v1beta1"
+        );
+        default = { };
+      };
+      "l2Advertisements" = mkOption {
+        description = "L2Advertisement allows to advertise the LoadBalancer IPs provided\nby the selected pools via L2.";
+        type = types.attrsOf (
+          submoduleForDefinition "metallb.io.v1beta1.L2Advertisement" "l2advertisements" "L2Advertisement"
+            "metallb.io"
+            "v1beta1"
+        );
+        default = { };
+      };
+      "serviceBGPStatuses" = mkOption {
+        description = "ServiceBGPStatus exposes the BGP peers a service is configured to be advertised to, per relevant node.";
+        type = types.attrsOf (
+          submoduleForDefinition "metallb.io.v1beta1.ServiceBGPStatus" "servicebgpstatuses" "ServiceBGPStatus"
+            "metallb.io"
+            "v1beta1"
+        );
+        default = { };
+      };
+      "serviceL2Statuses" = mkOption {
+        description = "ServiceL2Status reveals the actual traffic status of loadbalancer services in layer2 mode.";
+        type = types.attrsOf (
+          submoduleForDefinition "metallb.io.v1beta1.ServiceL2Status" "servicel2statuses" "ServiceL2Status"
+            "metallb.io"
+            "v1beta1"
+        );
+        default = { };
+      };
+    };
   };
 
   config = {
@@ -1239,22 +1351,18 @@ in {
     ];
 
     resources = {
-      "metallb.io"."v1beta1"."BFDProfile" =
-        mkAliasDefinitions options.resources."bfdProfiles";
+      "metallb.io"."v1beta1"."BFDProfile" = mkAliasDefinitions options.resources."bfdProfiles";
       "metallb.io"."v1beta1"."BGPAdvertisement" =
-        mkAliasDefinitions options.resources."bgpAdvertisements";
-      "metallb.io"."v1beta2"."BGPPeer" =
-        mkAliasDefinitions options.resources."bgpPeers";
-      "metallb.io"."v1beta1"."Community" =
-        mkAliasDefinitions options.resources."communities";
-      "metallb.io"."v1beta1"."IPAddressPool" =
-        mkAliasDefinitions options.resources."ipAddressPools";
-      "metallb.io"."v1beta1"."L2Advertisement" =
-        mkAliasDefinitions options.resources."l2Advertisements";
+        mkAliasDefinitions
+          options.resources."bgpAdvertisements";
+      "metallb.io"."v1beta2"."BGPPeer" = mkAliasDefinitions options.resources."bgpPeers";
+      "metallb.io"."v1beta1"."Community" = mkAliasDefinitions options.resources."communities";
+      "metallb.io"."v1beta1"."IPAddressPool" = mkAliasDefinitions options.resources."ipAddressPools";
+      "metallb.io"."v1beta1"."L2Advertisement" = mkAliasDefinitions options.resources."l2Advertisements";
       "metallb.io"."v1beta1"."ServiceBGPStatus" =
-        mkAliasDefinitions options.resources."serviceBGPStatuses";
-      "metallb.io"."v1beta1"."ServiceL2Status" =
-        mkAliasDefinitions options.resources."serviceL2Statuses";
+        mkAliasDefinitions
+          options.resources."serviceBGPStatuses";
+      "metallb.io"."v1beta1"."ServiceL2Status" = mkAliasDefinitions options.resources."serviceL2Statuses";
     };
 
     # make all namespaced resources default to the

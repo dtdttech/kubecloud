@@ -102,16 +102,43 @@
                 rev = "v0.15.2";
                 hash = "sha256-7jptqytou6Rv4BTcHIzFh++o/O8ojL7Z9b1fHWwQl+U=";
               };
-                crds = map (v: "config/crd/bases/${v}") [
-                  "metallb.io_bfdprofiles.yaml"
-                  "metallb.io_bgpadvertisements.yaml"
-                  "metallb.io_bgppeers.yaml"
-                  "metallb.io_communities.yaml"
-                  "metallb.io_ipaddresspools.yaml"
-                  "metallb.io_l2advertisements.yaml"
-                  "metallb.io_servicebgpstatuses.yaml"
-                  "metallb.io_servicel2statuses.yaml"
-                ];
+              crds = map (v: "config/crd/bases/${v}") [
+                "metallb.io_bfdprofiles.yaml"
+                "metallb.io_bgpadvertisements.yaml"
+                "metallb.io_bgppeers.yaml"
+                "metallb.io_communities.yaml"
+                "metallb.io_ipaddresspools.yaml"
+                "metallb.io_l2advertisements.yaml"
+                "metallb.io_servicebgpstatuses.yaml"
+                "metallb.io_servicel2statuses.yaml"
+              ];
+            };
+            traefik = nixidy.packages.${system}.generators.fromCRD {
+              name = "traefik";
+              src = nixhelm.chartsDerivations.${system}.traefik.traefik;
+              crds = map (v: "crds/${v}") [
+                "hub.traefik.io_accesscontrolpolicies.yaml"
+                "hub.traefik.io_aiservices.yaml"
+                "hub.traefik.io_apibundles.yaml"
+                "hub.traefik.io_apicatalogitems.yaml"
+                "hub.traefik.io_apiplans.yaml"
+                "hub.traefik.io_apiportals.yaml"
+                "hub.traefik.io_apiratelimits.yaml"
+                "hub.traefik.io_apis.yaml"
+                "hub.traefik.io_apiversions.yaml"
+                "hub.traefik.io_managedapplications.yaml"
+                "hub.traefik.io_managedsubscriptions.yaml"
+                "traefik.io_ingressroutes.yaml"
+                "traefik.io_ingressroutetcps.yaml"
+                "traefik.io_ingressrouteudps.yaml"
+                "traefik.io_middlewares.yaml"
+                "traefik.io_middlewaretcps.yaml"
+                "traefik.io_serverstransports.yaml"
+                "traefik.io_serverstransporttcps.yaml"
+                "traefik.io_tlsoptions.yaml"
+                "traefik.io_tlsstores.yaml"
+                "traefik.io_traefikservices.yaml"
+              ];
             };
             # prometheus = nixidy.packages.${system}.generators.fromCRD {
             #   name = "prometheus";
@@ -151,36 +178,7 @@
             #     "templates/crds.yaml"
             #   ];
             # };
-            traefik = nixidy.packages.${system}.generators.fromCRD {
-              name = "traefik";
-              src = nixhelm.chartsDerivations.${system}.traefik.traefik;
-              crds = map (v: "crds/${v}") [
-                # "gateway-standard-install.yaml"
-                "hub.traefik.io_managedapplications.yaml"
-                "hub.traefik.io_accesscontrolpolicies.yaml"
-                "hub.traefik.io_managedsubscriptions.yaml"
-                "hub.traefik.io_aiservices.yaml"
-                "traefik.io_ingressroutes.yaml"
-                # "hub.traefik.io_apiauths.yaml"
-                "traefik.io_ingressroutetcps.yaml"
-                "hub.traefik.io_apibundles.yaml"
-                "traefik.io_ingressrouteudps.yaml"
-                "hub.traefik.io_apicatalogitems.yaml"
-                "traefik.io_middlewares.yaml"
-                "hub.traefik.io_apiplans.yaml"
-                "traefik.io_middlewaretcps.yaml"
-                "hub.traefik.io_apiportalauths.yaml"
-                "traefik.io_serverstransports.yaml"
-                "hub.traefik.io_apiportals.yaml"
-                "traefik.io_serverstransporttcps.yaml"
-                "hub.traefik.io_apiratelimits.yaml"
-                "traefik.io_tlsoptions.yaml"
-                "hub.traefik.io_apis.yaml"
-                "traefik.io_tlsstores.yaml"
-                "hub.traefik.io_apiversions.yaml"
-                "traefik.io_traefikservices.yaml"
-              ];
-            };
+
             # argo-cd = nixidy.packages.${system}.generators.fromCRD {
             #   name = "argo-cd";
             #   src = pkgs.fetchFromGitHub {

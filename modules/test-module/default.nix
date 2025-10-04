@@ -1,9 +1,9 @@
-{ 
+{
   lib,
   config,
   charts,
   ...
-}: 
+}:
 let
 in
 {
@@ -12,6 +12,6 @@ in
       type = types.str;
     };
   };
-  
-  config = {};
+
+  config = { };
 }

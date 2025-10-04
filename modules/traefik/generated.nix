@@ -5,159 +5,3078 @@
   config,
   ...
 }:
-with lib; let
+with lib;
+let
   hasAttrNotNull = attr: set: hasAttr attr set && set.${attr} != null;
 
-  attrsToList = values:
-    if values != null
-    then
+  attrsToList =
+    values:
+    if values != null then
       sort (
         a: b:
-          if (hasAttrNotNull "_priority" a && hasAttrNotNull "_priority" b)
-          then a._priority < b._priority
-          else false
+        if (hasAttrNotNull "_priority" a && hasAttrNotNull "_priority" b) then
+          a._priority < b._priority
+        else
+          false
       ) (mapAttrsToList (n: v: v) values)
-    else values;
+    else
+      values;
 
-  getDefaults = resource: group: version: kind:
-    catAttrs "default" (filter (
+  getDefaults =
+    resource: group: version: kind:
+    catAttrs "default" (
+      filter (
         default:
-          (default.resource == null || default.resource == resource)
-          && (default.group == null || default.group == group)
-          && (default.version == null || default.version == version)
-          && (default.kind == null || default.kind == kind)
-      )
-      config.defaults);
+        (default.resource == null || default.resource == resource)
+        && (default.group == null || default.group == group)
+        && (default.version == null || default.version == version)
+        && (default.kind == null || default.kind == kind)
+      ) config.defaults
+    );
 
-  types =
-    lib.types
-    // rec {
-      str = mkOptionType {
-        name = "str";
-        description = "string";
-        check = isString;
-        merge = mergeEqualOption;
-      };
-
-      # Either value of type `finalType` or `coercedType`, the latter is
-      # converted to `finalType` using `coerceFunc`.
-      coercedTo = coercedType: coerceFunc: finalType:
-        mkOptionType rec {
-          inherit (finalType) getSubOptions getSubModules;
-
-          name = "coercedTo";
-          description = "${finalType.description} or ${coercedType.description}";
-          check = x: finalType.check x || coercedType.check x;
-          merge = loc: defs: let
-            coerceVal = val:
-              if finalType.check val
-              then val
-              else let
-                coerced = coerceFunc val;
-              in
-                assert finalType.check coerced; coerced;
-          in
-            finalType.merge loc (map (def: def // {value = coerceVal def.value;}) defs);
-          substSubModules = m: coercedTo coercedType coerceFunc (finalType.substSubModules m);
-          typeMerge = t1: t2: null;
-          functor = (defaultFunctor name) // {wrapped = finalType;};
-        };
+  types = lib.types // rec {
+    str = mkOptionType {
+      name = "str";
+      description = "string";
+      check = isString;
+      merge = mergeEqualOption;
     };
+
+    # Either value of type `finalType` or `coercedType`, the latter is
+    # converted to `finalType` using `coerceFunc`.
+    coercedTo =
+      coercedType: coerceFunc: finalType:
+      mkOptionType rec {
+        inherit (finalType) getSubOptions getSubModules;
+
+        name = "coercedTo";
+        description = "${finalType.description} or ${coercedType.description}";
+        check = x: finalType.check x || coercedType.check x;
+        merge =
+          loc: defs:
+          let
+            coerceVal =
+              val:
+              if finalType.check val then
+                val
+              else
+                let
+                  coerced = coerceFunc val;
+                in
+                assert finalType.check coerced;
+                coerced;
+          in
+          finalType.merge loc (map (def: def // { value = coerceVal def.value; }) defs);
+        substSubModules = m: coercedTo coercedType coerceFunc (finalType.substSubModules m);
+        typeMerge = t1: t2: null;
+        functor = (defaultFunctor name) // {
+          wrapped = finalType;
+        };
+      };
+  };
 
   mkOptionDefault = mkOverride 1001;
 
-  mergeValuesByKey = attrMergeKey: listMergeKeys: values:
-    listToAttrs (imap0
-      (i: value:
+  mergeValuesByKey =
+    attrMergeKey: listMergeKeys: values:
+    listToAttrs (
+      imap0 (
+        i: value:
         nameValuePair (
-          if hasAttr attrMergeKey value
-          then
-            if isAttrs value.${attrMergeKey}
-            then toString value.${attrMergeKey}.content
-            else (toString value.${attrMergeKey})
+          if hasAttr attrMergeKey value then
+            if isAttrs value.${attrMergeKey} then
+              toString value.${attrMergeKey}.content
+            else
+              (toString value.${attrMergeKey})
           else
             # generate merge key for list elements if it's not present
             "__kubenix_list_merge_key_"
-            + (concatStringsSep "" (map (
-                key:
-                  if isAttrs value.${key}
-                  then toString value.${key}.content
-                  else (toString value.${key})
-              )
-              listMergeKeys))
-        ) (value // {_priority = i;}))
-      values);
+            + (concatStringsSep "" (
+              map (
+                key: if isAttrs value.${key} then toString value.${key}.content else (toString value.${key})
+              ) listMergeKeys
+            ))
+        ) (value // { _priority = i; })
+      ) values
+    );
 
-  submoduleOf = ref:
-    types.submodule ({name, ...}: {
-      options = definitions."${ref}".options or {};
-      config = definitions."${ref}".config or {};
-    });
+  submoduleOf =
+    ref:
+    types.submodule (
+      { name, ... }:
+      {
+        options = definitions."${ref}".options or { };
+        config = definitions."${ref}".config or { };
+      }
+    );
 
-  globalSubmoduleOf = ref:
-    types.submodule ({name, ...}: {
-      options = config.definitions."${ref}".options or {};
-      config = config.definitions."${ref}".config or {};
-    });
+  globalSubmoduleOf =
+    ref:
+    types.submodule (
+      { name, ... }:
+      {
+        options = config.definitions."${ref}".options or { };
+        config = config.definitions."${ref}".config or { };
+      }
+    );
 
-  submoduleWithMergeOf = ref: mergeKey:
-    types.submodule ({name, ...}: let
-      convertName = name:
-        if definitions."${ref}".options.${mergeKey}.type == types.int
-        then toInt name
-        else name;
-    in {
-      options =
-        definitions."${ref}".options
-        // {
+  submoduleWithMergeOf =
+    ref: mergeKey:
+    types.submodule (
+      { name, ... }:
+      let
+        convertName =
+          name: if definitions."${ref}".options.${mergeKey}.type == types.int then toInt name else name;
+      in
+      {
+        options = definitions."${ref}".options // {
           # position in original array
           _priority = mkOption {
             type = types.nullOr types.int;
             default = null;
           };
         };
-      config =
-        definitions."${ref}".config
-        // {
+        config = definitions."${ref}".config // {
           ${mergeKey} = mkOverride 1002 (
             # use name as mergeKey only if it is not coming from mergeValuesByKey
-            if (!hasPrefix "__kubenix_list_merge_key_" name)
-            then convertName name
-            else null
+            if (!hasPrefix "__kubenix_list_merge_key_" name) then convertName name else null
           );
         };
-    });
+      }
+    );
 
-  submoduleForDefinition = ref: resource: kind: group: version: let
-    apiVersion =
-      if group == "core"
-      then version
-      else "${group}/${version}";
-  in
-    types.submodule ({name, ...}: {
-      inherit (definitions."${ref}") options;
+  submoduleForDefinition =
+    ref: resource: kind: group: version:
+    let
+      apiVersion = if group == "core" then version else "${group}/${version}";
+    in
+    types.submodule (
+      { name, ... }:
+      {
+        inherit (definitions."${ref}") options;
 
-      imports = getDefaults resource group version kind;
-      config = mkMerge [
-        definitions."${ref}".config
-        {
-          kind = mkOptionDefault kind;
-          apiVersion = mkOptionDefault apiVersion;
+        imports = getDefaults resource group version kind;
+        config = mkMerge [
+          definitions."${ref}".config
+          {
+            kind = mkOptionDefault kind;
+            apiVersion = mkOptionDefault apiVersion;
 
-          # metdata.name cannot use option default, due deep config
-          metadata.name = mkOptionDefault name;
-        }
-      ];
-    });
+            # metdata.name cannot use option default, due deep config
+            metadata.name = mkOptionDefault name;
+          }
+        ];
+      }
+    );
 
-  coerceAttrsOfSubmodulesToListByKey = ref: attrMergeKey: listMergeKeys: (
-    types.coercedTo
-    (types.listOf (submoduleOf ref))
-    (mergeValuesByKey attrMergeKey listMergeKeys)
-    (types.attrsOf (submoduleWithMergeOf ref attrMergeKey))
-  );
+  coerceAttrsOfSubmodulesToListByKey =
+    ref: attrMergeKey: listMergeKeys:
+    (types.coercedTo (types.listOf (submoduleOf ref)) (mergeValuesByKey attrMergeKey listMergeKeys) (
+      types.attrsOf (submoduleWithMergeOf ref attrMergeKey)
+    ));
 
   definitions = {
+    "hub.traefik.io.v1alpha1.AIService" = {
+      options = {
+        "apiVersion" = mkOption {
+          description = "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources";
+          type = types.nullOr types.str;
+        };
+        "kind" = mkOption {
+          description = "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds";
+          type = types.nullOr types.str;
+        };
+        "metadata" = mkOption {
+          description = "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata";
+          type = types.nullOr (globalSubmoduleOf "io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta");
+        };
+        "spec" = mkOption {
+          description = "The desired behavior of this AIService.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpec");
+        };
+      };
+
+      config = {
+        "apiVersion" = mkOverride 1002 null;
+        "kind" = mkOverride 1002 null;
+        "metadata" = mkOverride 1002 null;
+        "spec" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpec" = {
+      options = {
+        "anthropic" = mkOption {
+          description = "Anthropic configures Anthropic backend.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecAnthropic");
+        };
+        "azureOpenai" = mkOption {
+          description = "AzureOpenAI configures AzureOpenAI.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecAzureOpenai");
+        };
+        "bedrock" = mkOption {
+          description = "Bedrock configures Bedrock backend.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecBedrock");
+        };
+        "cohere" = mkOption {
+          description = "Cohere configures Cohere backend.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecCohere");
+        };
+        "deepSeek" = mkOption {
+          description = "DeepSeek configures DeepSeek.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecDeepSeek");
+        };
+        "gemini" = mkOption {
+          description = "Gemini configures Gemini backend.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecGemini");
+        };
+        "mistral" = mkOption {
+          description = "Mistral configures Mistral AI backend.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecMistral");
+        };
+        "ollama" = mkOption {
+          description = "Ollama configures Ollama backend.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecOllama");
+        };
+        "openai" = mkOption {
+          description = "OpenAI configures OpenAI.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecOpenai");
+        };
+        "qWen" = mkOption {
+          description = "QWen configures QWen.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecQWen");
+        };
+      };
+
+      config = {
+        "anthropic" = mkOverride 1002 null;
+        "azureOpenai" = mkOverride 1002 null;
+        "bedrock" = mkOverride 1002 null;
+        "cohere" = mkOverride 1002 null;
+        "deepSeek" = mkOverride 1002 null;
+        "gemini" = mkOverride 1002 null;
+        "mistral" = mkOverride 1002 null;
+        "ollama" = mkOverride 1002 null;
+        "openai" = mkOverride 1002 null;
+        "qWen" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecAnthropic" = {
+      options = {
+        "model" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "params" = mkOption {
+          description = "Params holds the LLM hyperparameters.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecAnthropicParams");
+        };
+        "token" = mkOption {
+          description = "SecretReference references a kubernetes secret.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecAnthropicToken");
+        };
+      };
+
+      config = {
+        "model" = mkOverride 1002 null;
+        "params" = mkOverride 1002 null;
+        "token" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecAnthropicParams" = {
+      options = {
+        "frequencyPenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "maxTokens" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "presencePenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "temperature" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "topP" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+      };
+
+      config = {
+        "frequencyPenalty" = mkOverride 1002 null;
+        "maxTokens" = mkOverride 1002 null;
+        "presencePenalty" = mkOverride 1002 null;
+        "temperature" = mkOverride 1002 null;
+        "topP" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecAnthropicToken" = {
+      options = {
+        "secretName" = mkOption {
+          description = "";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecAzureOpenai" = {
+      options = {
+        "apiKeySecret" = mkOption {
+          description = "SecretReference references a kubernetes secret.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecAzureOpenaiApiKeySecret");
+        };
+        "baseUrl" = mkOption {
+          description = "";
+          type = types.str;
+        };
+        "deploymentName" = mkOption {
+          description = "";
+          type = types.str;
+        };
+        "model" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "params" = mkOption {
+          description = "Params holds the LLM hyperparameters.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecAzureOpenaiParams");
+        };
+      };
+
+      config = {
+        "apiKeySecret" = mkOverride 1002 null;
+        "model" = mkOverride 1002 null;
+        "params" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecAzureOpenaiApiKeySecret" = {
+      options = {
+        "secretName" = mkOption {
+          description = "";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecAzureOpenaiParams" = {
+      options = {
+        "frequencyPenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "maxTokens" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "presencePenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "temperature" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "topP" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+      };
+
+      config = {
+        "frequencyPenalty" = mkOverride 1002 null;
+        "maxTokens" = mkOverride 1002 null;
+        "presencePenalty" = mkOverride 1002 null;
+        "temperature" = mkOverride 1002 null;
+        "topP" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecBedrock" = {
+      options = {
+        "model" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "params" = mkOption {
+          description = "Params holds the LLM hyperparameters.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecBedrockParams");
+        };
+        "region" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "systemMessage" = mkOption {
+          description = "";
+          type = types.nullOr types.bool;
+        };
+      };
+
+      config = {
+        "model" = mkOverride 1002 null;
+        "params" = mkOverride 1002 null;
+        "region" = mkOverride 1002 null;
+        "systemMessage" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecBedrockParams" = {
+      options = {
+        "frequencyPenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "maxTokens" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "presencePenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "temperature" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "topP" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+      };
+
+      config = {
+        "frequencyPenalty" = mkOverride 1002 null;
+        "maxTokens" = mkOverride 1002 null;
+        "presencePenalty" = mkOverride 1002 null;
+        "temperature" = mkOverride 1002 null;
+        "topP" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecCohere" = {
+      options = {
+        "model" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "params" = mkOption {
+          description = "Params holds the LLM hyperparameters.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecCohereParams");
+        };
+        "token" = mkOption {
+          description = "SecretReference references a kubernetes secret.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecCohereToken");
+        };
+      };
+
+      config = {
+        "model" = mkOverride 1002 null;
+        "params" = mkOverride 1002 null;
+        "token" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecCohereParams" = {
+      options = {
+        "frequencyPenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "maxTokens" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "presencePenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "temperature" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "topP" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+      };
+
+      config = {
+        "frequencyPenalty" = mkOverride 1002 null;
+        "maxTokens" = mkOverride 1002 null;
+        "presencePenalty" = mkOverride 1002 null;
+        "temperature" = mkOverride 1002 null;
+        "topP" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecCohereToken" = {
+      options = {
+        "secretName" = mkOption {
+          description = "";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecDeepSeek" = {
+      options = {
+        "baseUrl" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "model" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "params" = mkOption {
+          description = "Params holds the LLM hyperparameters.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecDeepSeekParams");
+        };
+        "token" = mkOption {
+          description = "SecretReference references a kubernetes secret.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecDeepSeekToken");
+        };
+      };
+
+      config = {
+        "baseUrl" = mkOverride 1002 null;
+        "model" = mkOverride 1002 null;
+        "params" = mkOverride 1002 null;
+        "token" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecDeepSeekParams" = {
+      options = {
+        "frequencyPenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "maxTokens" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "presencePenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "temperature" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "topP" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+      };
+
+      config = {
+        "frequencyPenalty" = mkOverride 1002 null;
+        "maxTokens" = mkOverride 1002 null;
+        "presencePenalty" = mkOverride 1002 null;
+        "temperature" = mkOverride 1002 null;
+        "topP" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecDeepSeekToken" = {
+      options = {
+        "secretName" = mkOption {
+          description = "";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecGemini" = {
+      options = {
+        "apiKey" = mkOption {
+          description = "SecretReference references a kubernetes secret.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecGeminiApiKey");
+        };
+        "model" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "params" = mkOption {
+          description = "Params holds the LLM hyperparameters.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecGeminiParams");
+        };
+      };
+
+      config = {
+        "apiKey" = mkOverride 1002 null;
+        "model" = mkOverride 1002 null;
+        "params" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecGeminiApiKey" = {
+      options = {
+        "secretName" = mkOption {
+          description = "";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecGeminiParams" = {
+      options = {
+        "frequencyPenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "maxTokens" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "presencePenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "temperature" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "topP" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+      };
+
+      config = {
+        "frequencyPenalty" = mkOverride 1002 null;
+        "maxTokens" = mkOverride 1002 null;
+        "presencePenalty" = mkOverride 1002 null;
+        "temperature" = mkOverride 1002 null;
+        "topP" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecMistral" = {
+      options = {
+        "apiKey" = mkOption {
+          description = "SecretReference references a kubernetes secret.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecMistralApiKey");
+        };
+        "model" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "params" = mkOption {
+          description = "Params holds the LLM hyperparameters.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecMistralParams");
+        };
+      };
+
+      config = {
+        "apiKey" = mkOverride 1002 null;
+        "model" = mkOverride 1002 null;
+        "params" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecMistralApiKey" = {
+      options = {
+        "secretName" = mkOption {
+          description = "";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecMistralParams" = {
+      options = {
+        "frequencyPenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "maxTokens" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "presencePenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "temperature" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "topP" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+      };
+
+      config = {
+        "frequencyPenalty" = mkOverride 1002 null;
+        "maxTokens" = mkOverride 1002 null;
+        "presencePenalty" = mkOverride 1002 null;
+        "temperature" = mkOverride 1002 null;
+        "topP" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecOllama" = {
+      options = {
+        "baseUrl" = mkOption {
+          description = "";
+          type = types.str;
+        };
+        "model" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "params" = mkOption {
+          description = "Params holds the LLM hyperparameters.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecOllamaParams");
+        };
+      };
+
+      config = {
+        "model" = mkOverride 1002 null;
+        "params" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecOllamaParams" = {
+      options = {
+        "frequencyPenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "maxTokens" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "presencePenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "temperature" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "topP" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+      };
+
+      config = {
+        "frequencyPenalty" = mkOverride 1002 null;
+        "maxTokens" = mkOverride 1002 null;
+        "presencePenalty" = mkOverride 1002 null;
+        "temperature" = mkOverride 1002 null;
+        "topP" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecOpenai" = {
+      options = {
+        "baseUrl" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "model" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "params" = mkOption {
+          description = "Params holds the LLM hyperparameters.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecOpenaiParams");
+        };
+        "token" = mkOption {
+          description = "SecretReference references a kubernetes secret.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecOpenaiToken");
+        };
+      };
+
+      config = {
+        "baseUrl" = mkOverride 1002 null;
+        "model" = mkOverride 1002 null;
+        "params" = mkOverride 1002 null;
+        "token" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecOpenaiParams" = {
+      options = {
+        "frequencyPenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "maxTokens" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "presencePenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "temperature" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "topP" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+      };
+
+      config = {
+        "frequencyPenalty" = mkOverride 1002 null;
+        "maxTokens" = mkOverride 1002 null;
+        "presencePenalty" = mkOverride 1002 null;
+        "temperature" = mkOverride 1002 null;
+        "topP" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecOpenaiToken" = {
+      options = {
+        "secretName" = mkOption {
+          description = "";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecQWen" = {
+      options = {
+        "baseUrl" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "model" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "params" = mkOption {
+          description = "Params holds the LLM hyperparameters.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecQWenParams");
+        };
+        "token" = mkOption {
+          description = "SecretReference references a kubernetes secret.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AIServiceSpecQWenToken");
+        };
+      };
+
+      config = {
+        "baseUrl" = mkOverride 1002 null;
+        "model" = mkOverride 1002 null;
+        "params" = mkOverride 1002 null;
+        "token" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecQWenParams" = {
+      options = {
+        "frequencyPenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "maxTokens" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "presencePenalty" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "temperature" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+        "topP" = mkOption {
+          description = "";
+          type = types.nullOr types.int;
+        };
+      };
+
+      config = {
+        "frequencyPenalty" = mkOverride 1002 null;
+        "maxTokens" = mkOverride 1002 null;
+        "presencePenalty" = mkOverride 1002 null;
+        "temperature" = mkOverride 1002 null;
+        "topP" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AIServiceSpecQWenToken" = {
+      options = {
+        "secretName" = mkOption {
+          description = "";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.API" = {
+      options = {
+        "apiVersion" = mkOption {
+          description = "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources";
+          type = types.nullOr types.str;
+        };
+        "kind" = mkOption {
+          description = "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds";
+          type = types.nullOr types.str;
+        };
+        "metadata" = mkOption {
+          description = "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata";
+          type = types.nullOr (globalSubmoduleOf "io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta");
+        };
+        "spec" = mkOption {
+          description = "APISpec describes the API.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APISpec");
+        };
+        "status" = mkOption {
+          description = "The current status of this API.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIStatus");
+        };
+      };
+
+      config = {
+        "apiVersion" = mkOverride 1002 null;
+        "kind" = mkOverride 1002 null;
+        "metadata" = mkOverride 1002 null;
+        "spec" = mkOverride 1002 null;
+        "status" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIBundle" = {
+      options = {
+        "apiVersion" = mkOption {
+          description = "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources";
+          type = types.nullOr types.str;
+        };
+        "kind" = mkOption {
+          description = "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds";
+          type = types.nullOr types.str;
+        };
+        "metadata" = mkOption {
+          description = "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata";
+          type = types.nullOr (globalSubmoduleOf "io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta");
+        };
+        "spec" = mkOption {
+          description = "The desired behavior of this APIBundle.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIBundleSpec");
+        };
+        "status" = mkOption {
+          description = "The current status of this APIBundle.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIBundleStatus");
+        };
+      };
+
+      config = {
+        "apiVersion" = mkOverride 1002 null;
+        "kind" = mkOverride 1002 null;
+        "metadata" = mkOverride 1002 null;
+        "spec" = mkOverride 1002 null;
+        "status" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIBundleSpec" = {
+      options = {
+        "apiSelector" = mkOption {
+          description = "APISelector selects the APIs that will be accessible to the configured audience.\nMultiple APIBundles can select the same set of APIs.\nThis field is optional and follows standard label selector semantics.\nAn empty APISelector matches any API.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIBundleSpecApiSelector");
+        };
+        "apis" = mkOption {
+          description = "APIs defines a set of APIs that will be accessible to the configured audience.\nMultiple APIBundles can select the same APIs.\nWhen combined with APISelector, this set of APIs is appended to the matching APIs.";
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "hub.traefik.io.v1alpha1.APIBundleSpecApis" "name" [ ]
+          );
+          apply = attrsToList;
+        };
+        "title" = mkOption {
+          description = "Title is the human-readable name of the APIBundle that will be used on the portal.";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "apiSelector" = mkOverride 1002 null;
+        "apis" = mkOverride 1002 null;
+        "title" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIBundleSpecApiSelector" = {
+      options = {
+        "matchExpressions" = mkOption {
+          description = "matchExpressions is a list of label selector requirements. The requirements are ANDed.";
+          type = types.nullOr (
+            types.listOf (submoduleOf "hub.traefik.io.v1alpha1.APIBundleSpecApiSelectorMatchExpressions")
+          );
+        };
+        "matchLabels" = mkOption {
+          description = "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.";
+          type = types.nullOr (types.attrsOf types.str);
+        };
+      };
+
+      config = {
+        "matchExpressions" = mkOverride 1002 null;
+        "matchLabels" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIBundleSpecApiSelectorMatchExpressions" = {
+      options = {
+        "key" = mkOption {
+          description = "key is the label key that the selector applies to.";
+          type = types.str;
+        };
+        "operator" = mkOption {
+          description = "operator represents a key's relationship to a set of values.\nValid operators are In, NotIn, Exists and DoesNotExist.";
+          type = types.str;
+        };
+        "values" = mkOption {
+          description = "values is an array of string values. If the operator is In or NotIn,\nthe values array must be non-empty. If the operator is Exists or DoesNotExist,\nthe values array must be empty. This array is replaced during a strategic\nmerge patch.";
+          type = types.nullOr (types.listOf types.str);
+        };
+      };
+
+      config = {
+        "values" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIBundleSpecApis" = {
+      options = {
+        "name" = mkOption {
+          description = "Name of the API.";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.APIBundleStatus" = {
+      options = {
+        "hash" = mkOption {
+          description = "Hash is a hash representing the APIBundle.";
+          type = types.nullOr types.str;
+        };
+        "syncedAt" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "version" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "hash" = mkOverride 1002 null;
+        "syncedAt" = mkOverride 1002 null;
+        "version" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APICatalogItem" = {
+      options = {
+        "apiVersion" = mkOption {
+          description = "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources";
+          type = types.nullOr types.str;
+        };
+        "kind" = mkOption {
+          description = "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds";
+          type = types.nullOr types.str;
+        };
+        "metadata" = mkOption {
+          description = "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata";
+          type = types.nullOr (globalSubmoduleOf "io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta");
+        };
+        "spec" = mkOption {
+          description = "The desired behavior of this APICatalogItem.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APICatalogItemSpec");
+        };
+        "status" = mkOption {
+          description = "The current status of this APICatalogItem.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APICatalogItemStatus");
+        };
+      };
+
+      config = {
+        "apiVersion" = mkOverride 1002 null;
+        "kind" = mkOverride 1002 null;
+        "metadata" = mkOverride 1002 null;
+        "spec" = mkOverride 1002 null;
+        "status" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APICatalogItemSpec" = {
+      options = {
+        "apiBundles" = mkOption {
+          description = "APIBundles defines a set of APIBundle that will be visible to the configured audience.\nMultiple APICatalogItem can select the same APIBundles.";
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "hub.traefik.io.v1alpha1.APICatalogItemSpecApiBundles" "name" [ ]
+          );
+          apply = attrsToList;
+        };
+        "apiPlan" = mkOption {
+          description = "APIPlan defines which APIPlan will be available.\nIf multiple APICatalogItem specify the same API with different APIPlan, the API consumer will be able to pick\na plan from this list.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APICatalogItemSpecApiPlan");
+        };
+        "apiSelector" = mkOption {
+          description = "APISelector selects the APIs that will be visible to the configured audience.\nMultiple APICatalogItem can select the same set of APIs.\nThis field is optional and follows standard label selector semantics.\nAn empty APISelector matches any API.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APICatalogItemSpecApiSelector");
+        };
+        "apis" = mkOption {
+          description = "APIs defines a set of APIs that will be visible to the configured audience.\nMultiple APICatalogItem can select the same APIs.\nWhen combined with APISelector, this set of APIs is appended to the matching APIs.";
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "hub.traefik.io.v1alpha1.APICatalogItemSpecApis" "name" [ ]
+          );
+          apply = attrsToList;
+        };
+        "everyone" = mkOption {
+          description = "Everyone indicates that all users will see these APIs.";
+          type = types.nullOr types.bool;
+        };
+        "groups" = mkOption {
+          description = "Groups are the consumer groups that will see the APIs.";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "operationFilter" = mkOption {
+          description = "OperationFilter specifies the visible operations on APIs and APIVersions.\nIf not set, all operations are available.\nAn empty OperationFilter prohibits all operations.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APICatalogItemSpecOperationFilter");
+        };
+      };
+
+      config = {
+        "apiBundles" = mkOverride 1002 null;
+        "apiPlan" = mkOverride 1002 null;
+        "apiSelector" = mkOverride 1002 null;
+        "apis" = mkOverride 1002 null;
+        "everyone" = mkOverride 1002 null;
+        "groups" = mkOverride 1002 null;
+        "operationFilter" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APICatalogItemSpecApiBundles" = {
+      options = {
+        "name" = mkOption {
+          description = "Name of the APIBundle.";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.APICatalogItemSpecApiPlan" = {
+      options = {
+        "name" = mkOption {
+          description = "Name of the APIPlan.";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.APICatalogItemSpecApiSelector" = {
+      options = {
+        "matchExpressions" = mkOption {
+          description = "matchExpressions is a list of label selector requirements. The requirements are ANDed.";
+          type = types.nullOr (
+            types.listOf (submoduleOf "hub.traefik.io.v1alpha1.APICatalogItemSpecApiSelectorMatchExpressions")
+          );
+        };
+        "matchLabels" = mkOption {
+          description = "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.";
+          type = types.nullOr (types.attrsOf types.str);
+        };
+      };
+
+      config = {
+        "matchExpressions" = mkOverride 1002 null;
+        "matchLabels" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APICatalogItemSpecApiSelectorMatchExpressions" = {
+      options = {
+        "key" = mkOption {
+          description = "key is the label key that the selector applies to.";
+          type = types.str;
+        };
+        "operator" = mkOption {
+          description = "operator represents a key's relationship to a set of values.\nValid operators are In, NotIn, Exists and DoesNotExist.";
+          type = types.str;
+        };
+        "values" = mkOption {
+          description = "values is an array of string values. If the operator is In or NotIn,\nthe values array must be non-empty. If the operator is Exists or DoesNotExist,\nthe values array must be empty. This array is replaced during a strategic\nmerge patch.";
+          type = types.nullOr (types.listOf types.str);
+        };
+      };
+
+      config = {
+        "values" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APICatalogItemSpecApis" = {
+      options = {
+        "name" = mkOption {
+          description = "Name of the API.";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.APICatalogItemSpecOperationFilter" = {
+      options = {
+        "include" = mkOption {
+          description = "Include defines the names of OperationSets that will be accessible.";
+          type = types.nullOr (types.listOf types.str);
+        };
+      };
+
+      config = {
+        "include" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APICatalogItemStatus" = {
+      options = {
+        "hash" = mkOption {
+          description = "Hash is a hash representing the APICatalogItem.";
+          type = types.nullOr types.str;
+        };
+        "syncedAt" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "version" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "hash" = mkOverride 1002 null;
+        "syncedAt" = mkOverride 1002 null;
+        "version" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIPlan" = {
+      options = {
+        "apiVersion" = mkOption {
+          description = "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources";
+          type = types.nullOr types.str;
+        };
+        "kind" = mkOption {
+          description = "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds";
+          type = types.nullOr types.str;
+        };
+        "metadata" = mkOption {
+          description = "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata";
+          type = types.nullOr (globalSubmoduleOf "io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta");
+        };
+        "spec" = mkOption {
+          description = "The desired behavior of this APIPlan.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIPlanSpec");
+        };
+        "status" = mkOption {
+          description = "The current status of this APIPlan.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIPlanStatus");
+        };
+      };
+
+      config = {
+        "apiVersion" = mkOverride 1002 null;
+        "kind" = mkOverride 1002 null;
+        "metadata" = mkOverride 1002 null;
+        "spec" = mkOverride 1002 null;
+        "status" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIPlanSpec" = {
+      options = {
+        "description" = mkOption {
+          description = "Description describes the plan.";
+          type = types.nullOr types.str;
+        };
+        "quota" = mkOption {
+          description = "Quota defines the quota policy.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIPlanSpecQuota");
+        };
+        "rateLimit" = mkOption {
+          description = "RateLimit defines the rate limit policy.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIPlanSpecRateLimit");
+        };
+        "title" = mkOption {
+          description = "Title is the human-readable name of the plan.";
+          type = types.str;
+        };
+      };
+
+      config = {
+        "description" = mkOverride 1002 null;
+        "quota" = mkOverride 1002 null;
+        "rateLimit" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIPlanSpecQuota" = {
+      options = {
+        "limit" = mkOption {
+          description = "Limit is the maximum number of token in the bucket.";
+          type = types.int;
+        };
+        "period" = mkOption {
+          description = "Period is the unit of time for the Limit.";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "period" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIPlanSpecRateLimit" = {
+      options = {
+        "limit" = mkOption {
+          description = "Limit is the maximum number of token in the bucket.";
+          type = types.int;
+        };
+        "period" = mkOption {
+          description = "Period is the unit of time for the Limit.";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "period" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIPlanStatus" = {
+      options = {
+        "hash" = mkOption {
+          description = "Hash is a hash representing the APIPlan.";
+          type = types.nullOr types.str;
+        };
+        "syncedAt" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "version" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "hash" = mkOverride 1002 null;
+        "syncedAt" = mkOverride 1002 null;
+        "version" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIPortal" = {
+      options = {
+        "apiVersion" = mkOption {
+          description = "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources";
+          type = types.nullOr types.str;
+        };
+        "kind" = mkOption {
+          description = "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds";
+          type = types.nullOr types.str;
+        };
+        "metadata" = mkOption {
+          description = "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata";
+          type = types.nullOr (globalSubmoduleOf "io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta");
+        };
+        "spec" = mkOption {
+          description = "The desired behavior of this APIPortal.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIPortalSpec");
+        };
+        "status" = mkOption {
+          description = "The current status of this APIPortal.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIPortalStatus");
+        };
+      };
+
+      config = {
+        "apiVersion" = mkOverride 1002 null;
+        "kind" = mkOverride 1002 null;
+        "metadata" = mkOverride 1002 null;
+        "spec" = mkOverride 1002 null;
+        "status" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIPortalSpec" = {
+      options = {
+        "description" = mkOption {
+          description = "Description of the APIPortal.";
+          type = types.nullOr types.str;
+        };
+        "title" = mkOption {
+          description = "Title is the public facing name of the APIPortal.";
+          type = types.nullOr types.str;
+        };
+        "trustedUrls" = mkOption {
+          description = "TrustedURLs are the urls that are trusted by the OAuth 2.0 authorization server.";
+          type = types.listOf types.str;
+        };
+        "ui" = mkOption {
+          description = "UI holds the UI customization options.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIPortalSpecUi");
+        };
+      };
+
+      config = {
+        "description" = mkOverride 1002 null;
+        "title" = mkOverride 1002 null;
+        "ui" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIPortalSpecUi" = {
+      options = {
+        "logoUrl" = mkOption {
+          description = "LogoURL is the public URL of the logo.";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "logoUrl" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIPortalStatus" = {
+      options = {
+        "hash" = mkOption {
+          description = "Hash is a hash representing the APIPortal.";
+          type = types.nullOr types.str;
+        };
+        "oidc" = mkOption {
+          description = "OIDC is the OIDC configuration for accessing the exposed APIPortal WebUI.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIPortalStatusOidc");
+        };
+        "syncedAt" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "version" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "hash" = mkOverride 1002 null;
+        "oidc" = mkOverride 1002 null;
+        "syncedAt" = mkOverride 1002 null;
+        "version" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIPortalStatusOidc" = {
+      options = {
+        "clientId" = mkOption {
+          description = "ClientID is the OIDC ClientID for accessing the exposed APIPortal WebUI.";
+          type = types.nullOr types.str;
+        };
+        "companyClaim" = mkOption {
+          description = "CompanyClaim is the name of the JWT claim containing the user company.";
+          type = types.nullOr types.str;
+        };
+        "emailClaim" = mkOption {
+          description = "EmailClaim is the name of the JWT claim containing the user email.";
+          type = types.nullOr types.str;
+        };
+        "firstnameClaim" = mkOption {
+          description = "FirstnameClaim is the name of the JWT claim containing the user firstname.";
+          type = types.nullOr types.str;
+        };
+        "generic" = mkOption {
+          description = "Generic indicates whether or not the APIPortal authentication relies on Generic OIDC.";
+          type = types.nullOr types.bool;
+        };
+        "groupsClaim" = mkOption {
+          description = "GroupsClaim is the name of the JWT claim containing the user groups.";
+          type = types.nullOr types.str;
+        };
+        "issuer" = mkOption {
+          description = "Issuer is the OIDC issuer for accessing the exposed APIPortal WebUI.";
+          type = types.nullOr types.str;
+        };
+        "lastnameClaim" = mkOption {
+          description = "LastnameClaim is the name of the JWT claim containing the user lastname.";
+          type = types.nullOr types.str;
+        };
+        "scopes" = mkOption {
+          description = "Scopes is the OIDC scopes for getting user attributes during the authentication to the exposed APIPortal WebUI.";
+          type = types.nullOr types.str;
+        };
+        "secretName" = mkOption {
+          description = "SecretName is the name of the secret containing the OIDC ClientSecret for accessing the exposed APIPortal WebUI.";
+          type = types.nullOr types.str;
+        };
+        "syncedAttributes" = mkOption {
+          description = "SyncedAttributes configure the user attributes to sync.";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "userIdClaim" = mkOption {
+          description = "UserIDClaim is the name of the JWT claim containing the user ID.";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "clientId" = mkOverride 1002 null;
+        "companyClaim" = mkOverride 1002 null;
+        "emailClaim" = mkOverride 1002 null;
+        "firstnameClaim" = mkOverride 1002 null;
+        "generic" = mkOverride 1002 null;
+        "groupsClaim" = mkOverride 1002 null;
+        "issuer" = mkOverride 1002 null;
+        "lastnameClaim" = mkOverride 1002 null;
+        "scopes" = mkOverride 1002 null;
+        "secretName" = mkOverride 1002 null;
+        "syncedAttributes" = mkOverride 1002 null;
+        "userIdClaim" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIRateLimit" = {
+      options = {
+        "apiVersion" = mkOption {
+          description = "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources";
+          type = types.nullOr types.str;
+        };
+        "kind" = mkOption {
+          description = "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds";
+          type = types.nullOr types.str;
+        };
+        "metadata" = mkOption {
+          description = "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata";
+          type = types.nullOr (globalSubmoduleOf "io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta");
+        };
+        "spec" = mkOption {
+          description = "The desired behavior of this APIRateLimit.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIRateLimitSpec");
+        };
+        "status" = mkOption {
+          description = "The current status of this APIRateLimit.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIRateLimitStatus");
+        };
+      };
+
+      config = {
+        "apiVersion" = mkOverride 1002 null;
+        "kind" = mkOverride 1002 null;
+        "metadata" = mkOverride 1002 null;
+        "spec" = mkOverride 1002 null;
+        "status" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIRateLimitSpec" = {
+      options = {
+        "apiSelector" = mkOption {
+          description = "APISelector selects the APIs that will be rate limited.\nMultiple APIRateLimits can select the same set of APIs.\nThis field is optional and follows standard label selector semantics.\nAn empty APISelector matches any API.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIRateLimitSpecApiSelector");
+        };
+        "apis" = mkOption {
+          description = "APIs defines a set of APIs that will be rate limited.\nMultiple APIRateLimits can select the same APIs.\nWhen combined with APISelector, this set of APIs is appended to the matching APIs.";
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "hub.traefik.io.v1alpha1.APIRateLimitSpecApis" "name" [ ]
+          );
+          apply = attrsToList;
+        };
+        "everyone" = mkOption {
+          description = "Everyone indicates that all users will, by default, be rate limited with this configuration.\nIf an APIRateLimit explicitly target a group, the default rate limit will be ignored.";
+          type = types.nullOr types.bool;
+        };
+        "groups" = mkOption {
+          description = "Groups are the consumer groups that will be rate limited.\nMultiple APIRateLimits can target the same set of consumer groups, the most restrictive one applies.\nWhen a consumer belongs to multiple groups, the least restrictive APIRateLimit applies.";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "limit" = mkOption {
+          description = "Limit is the maximum number of token in the bucket.";
+          type = types.int;
+        };
+        "period" = mkOption {
+          description = "Period is the unit of time for the Limit.";
+          type = types.nullOr types.str;
+        };
+        "strategy" = mkOption {
+          description = "Strategy defines how the bucket state will be synchronized between the different Traefik Hub instances.\nIt can be, either \"local\" or \"distributed\".";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "apiSelector" = mkOverride 1002 null;
+        "apis" = mkOverride 1002 null;
+        "everyone" = mkOverride 1002 null;
+        "groups" = mkOverride 1002 null;
+        "period" = mkOverride 1002 null;
+        "strategy" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIRateLimitSpecApiSelector" = {
+      options = {
+        "matchExpressions" = mkOption {
+          description = "matchExpressions is a list of label selector requirements. The requirements are ANDed.";
+          type = types.nullOr (
+            types.listOf (submoduleOf "hub.traefik.io.v1alpha1.APIRateLimitSpecApiSelectorMatchExpressions")
+          );
+        };
+        "matchLabels" = mkOption {
+          description = "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.";
+          type = types.nullOr (types.attrsOf types.str);
+        };
+      };
+
+      config = {
+        "matchExpressions" = mkOverride 1002 null;
+        "matchLabels" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIRateLimitSpecApiSelectorMatchExpressions" = {
+      options = {
+        "key" = mkOption {
+          description = "key is the label key that the selector applies to.";
+          type = types.str;
+        };
+        "operator" = mkOption {
+          description = "operator represents a key's relationship to a set of values.\nValid operators are In, NotIn, Exists and DoesNotExist.";
+          type = types.str;
+        };
+        "values" = mkOption {
+          description = "values is an array of string values. If the operator is In or NotIn,\nthe values array must be non-empty. If the operator is Exists or DoesNotExist,\nthe values array must be empty. This array is replaced during a strategic\nmerge patch.";
+          type = types.nullOr (types.listOf types.str);
+        };
+      };
+
+      config = {
+        "values" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIRateLimitSpecApis" = {
+      options = {
+        "name" = mkOption {
+          description = "Name of the API.";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.APIRateLimitStatus" = {
+      options = {
+        "hash" = mkOption {
+          description = "Hash is a hash representing the APIRateLimit.";
+          type = types.nullOr types.str;
+        };
+        "syncedAt" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "version" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "hash" = mkOverride 1002 null;
+        "syncedAt" = mkOverride 1002 null;
+        "version" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APISpec" = {
+      options = {
+        "cors" = mkOption {
+          description = "Cors defines the Cross-Origin Resource Sharing configuration.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APISpecCors");
+        };
+        "description" = mkOption {
+          description = "Description explains what the API does.";
+          type = types.nullOr types.str;
+        };
+        "openApiSpec" = mkOption {
+          description = "OpenAPISpec defines the API contract as an OpenAPI specification.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APISpecOpenApiSpec");
+        };
+        "title" = mkOption {
+          description = "Title is the human-readable name of the API that will be used on the portal.";
+          type = types.nullOr types.str;
+        };
+        "versions" = mkOption {
+          description = "Versions are the different APIVersions available.";
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "hub.traefik.io.v1alpha1.APISpecVersions" "name" [ ]
+          );
+          apply = attrsToList;
+        };
+      };
+
+      config = {
+        "cors" = mkOverride 1002 null;
+        "description" = mkOverride 1002 null;
+        "openApiSpec" = mkOverride 1002 null;
+        "title" = mkOverride 1002 null;
+        "versions" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APISpecCors" = {
+      options = {
+        "addVaryHeader" = mkOption {
+          description = "AddVaryHeader defines whether the Vary header is automatically added/updated when the AllowOriginsList is set.";
+          type = types.nullOr types.bool;
+        };
+        "allowCredentials" = mkOption {
+          description = "AllowCredentials defines whether the request can include user credentials.";
+          type = types.nullOr types.bool;
+        };
+        "allowHeadersList" = mkOption {
+          description = "AllowHeadersList defines the Access-Control-Request-Headers values sent in preflight response.";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "allowMethodsList" = mkOption {
+          description = "AllowMethodsList defines the Access-Control-Request-Method values sent in preflight response.";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "allowOriginListRegex" = mkOption {
+          description = "AllowOriginListRegex is a list of allowable origins written following the Regular Expression syntax (https://golang.org/pkg/regexp/).";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "allowOriginsList" = mkOption {
+          description = "AllowOriginsList is a list of allowable origins. Can also be a wildcard origin \"*\".";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "exposeHeadersList" = mkOption {
+          description = "ExposeHeadersList defines the Access-Control-Expose-Headers values sent in preflight response.";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "maxAge" = mkOption {
+          description = "MaxAge defines the time that a preflight request may be cached.";
+          type = types.nullOr types.int;
+        };
+      };
+
+      config = {
+        "addVaryHeader" = mkOverride 1002 null;
+        "allowCredentials" = mkOverride 1002 null;
+        "allowHeadersList" = mkOverride 1002 null;
+        "allowMethodsList" = mkOverride 1002 null;
+        "allowOriginListRegex" = mkOverride 1002 null;
+        "allowOriginsList" = mkOverride 1002 null;
+        "exposeHeadersList" = mkOverride 1002 null;
+        "maxAge" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APISpecOpenApiSpec" = {
+      options = {
+        "operationSets" = mkOption {
+          description = "OperationSets defines the sets of operations to be referenced for granular filtering in APICatalogItems or ManagedSubscriptions.";
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "hub.traefik.io.v1alpha1.APISpecOpenApiSpecOperationSets" "name"
+              [ ]
+          );
+          apply = attrsToList;
+        };
+        "override" = mkOption {
+          description = "Override holds data used to override OpenAPI specification.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APISpecOpenApiSpecOverride");
+        };
+        "path" = mkOption {
+          description = "Path specifies the endpoint path within the Kubernetes Service where the OpenAPI specification can be obtained.\nThe Service queried is determined by the associated Ingress, IngressRoute, or HTTPRoute resource to which the API is attached.\nIt's important to note that this option is incompatible if the Ingress or IngressRoute specifies multiple backend services.\nThe Path must be accessible via a GET request method and should serve a YAML or JSON document containing the OpenAPI specification.";
+          type = types.nullOr types.str;
+        };
+        "url" = mkOption {
+          description = "URL is a Traefik Hub agent accessible URL for obtaining the OpenAPI specification.\nThe URL must be accessible via a GET request method and should serve a YAML or JSON document containing the OpenAPI specification.";
+          type = types.nullOr types.str;
+        };
+        "validateRequestMethodAndPath" = mkOption {
+          description = "ValidateRequestMethodAndPath validates that the path and method matches an operation defined in the OpenAPI specification.\nThis option overrides the default behavior configured in the static configuration.";
+          type = types.nullOr types.bool;
+        };
+      };
+
+      config = {
+        "operationSets" = mkOverride 1002 null;
+        "override" = mkOverride 1002 null;
+        "path" = mkOverride 1002 null;
+        "url" = mkOverride 1002 null;
+        "validateRequestMethodAndPath" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APISpecOpenApiSpecOperationSets" = {
+      options = {
+        "matchers" = mkOption {
+          description = "Matchers defines a list of alternative rules for matching OpenAPI operations.";
+          type = types.listOf (submoduleOf "hub.traefik.io.v1alpha1.APISpecOpenApiSpecOperationSetsMatchers");
+        };
+        "name" = mkOption {
+          description = "Name is the name of the OperationSet to reference in APICatalogItems or ManagedSubscriptions.";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.APISpecOpenApiSpecOperationSetsMatchers" = {
+      options = {
+        "methods" = mkOption {
+          description = "Methods specifies the HTTP methods to be included for selection.";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "path" = mkOption {
+          description = "Path specifies the exact path of the operations to select.";
+          type = types.nullOr types.str;
+        };
+        "pathPrefix" = mkOption {
+          description = "PathPrefix specifies the path prefix of the operations to select.";
+          type = types.nullOr types.str;
+        };
+        "pathRegex" = mkOption {
+          description = "PathRegex specifies a regular expression pattern for matching operations based on their paths.";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "methods" = mkOverride 1002 null;
+        "path" = mkOverride 1002 null;
+        "pathPrefix" = mkOverride 1002 null;
+        "pathRegex" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APISpecOpenApiSpecOverride" = {
+      options = {
+        "servers" = mkOption {
+          description = "";
+          type = types.listOf (submoduleOf "hub.traefik.io.v1alpha1.APISpecOpenApiSpecOverrideServers");
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.APISpecOpenApiSpecOverrideServers" = {
+      options = {
+        "url" = mkOption {
+          description = "";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.APISpecVersions" = {
+      options = {
+        "name" = mkOption {
+          description = "Name of the APIVersion.";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.APIStatus" = {
+      options = {
+        "hash" = mkOption {
+          description = "Hash is a hash representing the API.";
+          type = types.nullOr types.str;
+        };
+        "syncedAt" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "version" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "hash" = mkOverride 1002 null;
+        "syncedAt" = mkOverride 1002 null;
+        "version" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIVersion" = {
+      options = {
+        "apiVersion" = mkOption {
+          description = "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources";
+          type = types.nullOr types.str;
+        };
+        "kind" = mkOption {
+          description = "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds";
+          type = types.nullOr types.str;
+        };
+        "metadata" = mkOption {
+          description = "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata";
+          type = types.nullOr (globalSubmoduleOf "io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta");
+        };
+        "spec" = mkOption {
+          description = "The desired behavior of this APIVersion.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIVersionSpec");
+        };
+        "status" = mkOption {
+          description = "The current status of this APIVersion.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIVersionStatus");
+        };
+      };
+
+      config = {
+        "apiVersion" = mkOverride 1002 null;
+        "kind" = mkOverride 1002 null;
+        "metadata" = mkOverride 1002 null;
+        "spec" = mkOverride 1002 null;
+        "status" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIVersionSpec" = {
+      options = {
+        "cors" = mkOption {
+          description = "Cors defines the Cross-Origin Resource Sharing configuration.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIVersionSpecCors");
+        };
+        "description" = mkOption {
+          description = "Description explains what the APIVersion does.";
+          type = types.nullOr types.str;
+        };
+        "openApiSpec" = mkOption {
+          description = "OpenAPISpec defines the API contract as an OpenAPI specification.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIVersionSpecOpenApiSpec");
+        };
+        "release" = mkOption {
+          description = "Release is the version number of the API.\nThis value must follow the SemVer format: https://semver.org/";
+          type = types.str;
+        };
+        "title" = mkOption {
+          description = "Title is the public facing name of the APIVersion.";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "cors" = mkOverride 1002 null;
+        "description" = mkOverride 1002 null;
+        "openApiSpec" = mkOverride 1002 null;
+        "title" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIVersionSpecCors" = {
+      options = {
+        "addVaryHeader" = mkOption {
+          description = "AddVaryHeader defines whether the Vary header is automatically added/updated when the AllowOriginsList is set.";
+          type = types.nullOr types.bool;
+        };
+        "allowCredentials" = mkOption {
+          description = "AllowCredentials defines whether the request can include user credentials.";
+          type = types.nullOr types.bool;
+        };
+        "allowHeadersList" = mkOption {
+          description = "AllowHeadersList defines the Access-Control-Request-Headers values sent in preflight response.";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "allowMethodsList" = mkOption {
+          description = "AllowMethodsList defines the Access-Control-Request-Method values sent in preflight response.";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "allowOriginListRegex" = mkOption {
+          description = "AllowOriginListRegex is a list of allowable origins written following the Regular Expression syntax (https://golang.org/pkg/regexp/).";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "allowOriginsList" = mkOption {
+          description = "AllowOriginsList is a list of allowable origins. Can also be a wildcard origin \"*\".";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "exposeHeadersList" = mkOption {
+          description = "ExposeHeadersList defines the Access-Control-Expose-Headers values sent in preflight response.";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "maxAge" = mkOption {
+          description = "MaxAge defines the time that a preflight request may be cached.";
+          type = types.nullOr types.int;
+        };
+      };
+
+      config = {
+        "addVaryHeader" = mkOverride 1002 null;
+        "allowCredentials" = mkOverride 1002 null;
+        "allowHeadersList" = mkOverride 1002 null;
+        "allowMethodsList" = mkOverride 1002 null;
+        "allowOriginListRegex" = mkOverride 1002 null;
+        "allowOriginsList" = mkOverride 1002 null;
+        "exposeHeadersList" = mkOverride 1002 null;
+        "maxAge" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIVersionSpecOpenApiSpec" = {
+      options = {
+        "operationSets" = mkOption {
+          description = "OperationSets defines the sets of operations to be referenced for granular filtering in APICatalogItems or ManagedSubscriptions.";
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "hub.traefik.io.v1alpha1.APIVersionSpecOpenApiSpecOperationSets"
+              "name"
+              [ ]
+          );
+          apply = attrsToList;
+        };
+        "override" = mkOption {
+          description = "Override holds data used to override OpenAPI specification.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.APIVersionSpecOpenApiSpecOverride");
+        };
+        "path" = mkOption {
+          description = "Path specifies the endpoint path within the Kubernetes Service where the OpenAPI specification can be obtained.\nThe Service queried is determined by the associated Ingress, IngressRoute, or HTTPRoute resource to which the API is attached.\nIt's important to note that this option is incompatible if the Ingress or IngressRoute specifies multiple backend services.\nThe Path must be accessible via a GET request method and should serve a YAML or JSON document containing the OpenAPI specification.";
+          type = types.nullOr types.str;
+        };
+        "url" = mkOption {
+          description = "URL is a Traefik Hub agent accessible URL for obtaining the OpenAPI specification.\nThe URL must be accessible via a GET request method and should serve a YAML or JSON document containing the OpenAPI specification.";
+          type = types.nullOr types.str;
+        };
+        "validateRequestMethodAndPath" = mkOption {
+          description = "ValidateRequestMethodAndPath validates that the path and method matches an operation defined in the OpenAPI specification.\nThis option overrides the default behavior configured in the static configuration.";
+          type = types.nullOr types.bool;
+        };
+      };
+
+      config = {
+        "operationSets" = mkOverride 1002 null;
+        "override" = mkOverride 1002 null;
+        "path" = mkOverride 1002 null;
+        "url" = mkOverride 1002 null;
+        "validateRequestMethodAndPath" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIVersionSpecOpenApiSpecOperationSets" = {
+      options = {
+        "matchers" = mkOption {
+          description = "Matchers defines a list of alternative rules for matching OpenAPI operations.";
+          type = types.listOf (
+            submoduleOf "hub.traefik.io.v1alpha1.APIVersionSpecOpenApiSpecOperationSetsMatchers"
+          );
+        };
+        "name" = mkOption {
+          description = "Name is the name of the OperationSet to reference in APICatalogItems or ManagedSubscriptions.";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.APIVersionSpecOpenApiSpecOperationSetsMatchers" = {
+      options = {
+        "methods" = mkOption {
+          description = "Methods specifies the HTTP methods to be included for selection.";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "path" = mkOption {
+          description = "Path specifies the exact path of the operations to select.";
+          type = types.nullOr types.str;
+        };
+        "pathPrefix" = mkOption {
+          description = "PathPrefix specifies the path prefix of the operations to select.";
+          type = types.nullOr types.str;
+        };
+        "pathRegex" = mkOption {
+          description = "PathRegex specifies a regular expression pattern for matching operations based on their paths.";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "methods" = mkOverride 1002 null;
+        "path" = mkOverride 1002 null;
+        "pathPrefix" = mkOverride 1002 null;
+        "pathRegex" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.APIVersionSpecOpenApiSpecOverride" = {
+      options = {
+        "servers" = mkOption {
+          description = "";
+          type = types.listOf (
+            submoduleOf "hub.traefik.io.v1alpha1.APIVersionSpecOpenApiSpecOverrideServers"
+          );
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.APIVersionSpecOpenApiSpecOverrideServers" = {
+      options = {
+        "url" = mkOption {
+          description = "";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.APIVersionStatus" = {
+      options = {
+        "hash" = mkOption {
+          description = "Hash is a hash representing the APIVersion.";
+          type = types.nullOr types.str;
+        };
+        "syncedAt" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "version" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "hash" = mkOverride 1002 null;
+        "syncedAt" = mkOverride 1002 null;
+        "version" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicy" = {
+      options = {
+        "apiVersion" = mkOption {
+          description = "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources";
+          type = types.nullOr types.str;
+        };
+        "kind" = mkOption {
+          description = "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds";
+          type = types.nullOr types.str;
+        };
+        "metadata" = mkOption {
+          description = "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata";
+          type = types.nullOr (globalSubmoduleOf "io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta");
+        };
+        "spec" = mkOption {
+          description = "AccessControlPolicySpec configures an access control policy.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpec");
+        };
+        "status" = mkOption {
+          description = "The current status of this access control policy.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicyStatus");
+        };
+      };
+
+      config = {
+        "apiVersion" = mkOverride 1002 null;
+        "kind" = mkOverride 1002 null;
+        "metadata" = mkOverride 1002 null;
+        "spec" = mkOverride 1002 null;
+        "status" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpec" = {
+      options = {
+        "apiKey" = mkOption {
+          description = "AccessControlPolicyAPIKey configure an APIKey control policy.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecApiKey");
+        };
+        "basicAuth" = mkOption {
+          description = "AccessControlPolicyBasicAuth holds the HTTP basic authentication configuration.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecBasicAuth");
+        };
+        "jwt" = mkOption {
+          description = "AccessControlPolicyJWT configures a JWT access control policy.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecJwt");
+        };
+        "oAuthIntro" = mkOption {
+          description = "AccessControlOAuthIntro configures an OAuth 2.0 Token Introspection access control policy.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecOAuthIntro");
+        };
+        "oidc" = mkOption {
+          description = "AccessControlPolicyOIDC holds the OIDC authentication configuration.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecOidc");
+        };
+        "oidcGoogle" = mkOption {
+          description = "AccessControlPolicyOIDCGoogle holds the Google OIDC authentication configuration.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecOidcGoogle");
+        };
+      };
+
+      config = {
+        "apiKey" = mkOverride 1002 null;
+        "basicAuth" = mkOverride 1002 null;
+        "jwt" = mkOverride 1002 null;
+        "oAuthIntro" = mkOverride 1002 null;
+        "oidc" = mkOverride 1002 null;
+        "oidcGoogle" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecApiKey" = {
+      options = {
+        "forwardHeaders" = mkOption {
+          description = "ForwardHeaders instructs the middleware to forward key metadata as header values upon successful authentication.";
+          type = types.nullOr (types.attrsOf types.str);
+        };
+        "keySource" = mkOption {
+          description = "KeySource defines how to extract API keys from requests.";
+          type = submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecApiKeyKeySource";
+        };
+        "keys" = mkOption {
+          description = "Keys define the set of authorized keys to access a protected resource.";
+          type = types.nullOr (
+            types.listOf (submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecApiKeyKeys")
+          );
+        };
+      };
+
+      config = {
+        "forwardHeaders" = mkOverride 1002 null;
+        "keys" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecApiKeyKeySource" = {
+      options = {
+        "cookie" = mkOption {
+          description = "Cookie is the name of a cookie.";
+          type = types.nullOr types.str;
+        };
+        "header" = mkOption {
+          description = "Header is the name of a header.";
+          type = types.nullOr types.str;
+        };
+        "headerAuthScheme" = mkOption {
+          description = "HeaderAuthScheme sets an optional auth scheme when Header is set to \"Authorization\".\nIf set, this scheme is removed from the token, and all requests not including it are dropped.";
+          type = types.nullOr types.str;
+        };
+        "query" = mkOption {
+          description = "Query is the name of a query parameter.";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "cookie" = mkOverride 1002 null;
+        "header" = mkOverride 1002 null;
+        "headerAuthScheme" = mkOverride 1002 null;
+        "query" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecApiKeyKeys" = {
+      options = {
+        "id" = mkOption {
+          description = "ID is the unique identifier of the key.";
+          type = types.str;
+        };
+        "metadata" = mkOption {
+          description = "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata";
+          type = types.nullOr (globalSubmoduleOf "io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta");
+        };
+        "value" = mkOption {
+          description = "Value is the SHAKE-256 hash (using 64 bytes) of the API key.";
+          type = types.str;
+        };
+      };
+
+      config = {
+        "metadata" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecBasicAuth" = {
+      options = {
+        "forwardUsernameHeader" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "realm" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "stripAuthorizationHeader" = mkOption {
+          description = "";
+          type = types.nullOr types.bool;
+        };
+        "users" = mkOption {
+          description = "";
+          type = types.nullOr (types.listOf types.str);
+        };
+      };
+
+      config = {
+        "forwardUsernameHeader" = mkOverride 1002 null;
+        "realm" = mkOverride 1002 null;
+        "stripAuthorizationHeader" = mkOverride 1002 null;
+        "users" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecJwt" = {
+      options = {
+        "claims" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "forwardHeaders" = mkOption {
+          description = "";
+          type = types.nullOr (types.attrsOf types.str);
+        };
+        "jwksFile" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "jwksUrl" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "publicKey" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "signingSecret" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "signingSecretBase64Encoded" = mkOption {
+          description = "";
+          type = types.nullOr types.bool;
+        };
+        "stripAuthorizationHeader" = mkOption {
+          description = "";
+          type = types.nullOr types.bool;
+        };
+        "tokenQueryKey" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "claims" = mkOverride 1002 null;
+        "forwardHeaders" = mkOverride 1002 null;
+        "jwksFile" = mkOverride 1002 null;
+        "jwksUrl" = mkOverride 1002 null;
+        "publicKey" = mkOverride 1002 null;
+        "signingSecret" = mkOverride 1002 null;
+        "signingSecretBase64Encoded" = mkOverride 1002 null;
+        "stripAuthorizationHeader" = mkOverride 1002 null;
+        "tokenQueryKey" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecOAuthIntro" = {
+      options = {
+        "claims" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "clientConfig" = mkOption {
+          description = "AccessControlOAuthIntroClientConfig configures the OAuth 2.0 client for issuing token introspection requests.";
+          type = submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecOAuthIntroClientConfig";
+        };
+        "forwardHeaders" = mkOption {
+          description = "";
+          type = types.nullOr (types.attrsOf types.str);
+        };
+        "tokenSource" = mkOption {
+          description = "TokenSource describes how to extract tokens from HTTP requests.\nIf multiple sources are set, the order is the following: header > query > cookie.";
+          type = submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecOAuthIntroTokenSource";
+        };
+      };
+
+      config = {
+        "claims" = mkOverride 1002 null;
+        "forwardHeaders" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecOAuthIntroClientConfig" = {
+      options = {
+        "headers" = mkOption {
+          description = "Headers to set when sending requests to the Authorization Server.";
+          type = types.nullOr (types.attrsOf types.str);
+        };
+        "maxRetries" = mkOption {
+          description = "MaxRetries defines the number of retries for introspection requests.";
+          type = types.nullOr types.int;
+        };
+        "timeoutSeconds" = mkOption {
+          description = "TimeoutSeconds configures the maximum amount of seconds to wait before giving up on requests.";
+          type = types.nullOr types.int;
+        };
+        "tls" = mkOption {
+          description = "TLS configures TLS communication with the Authorization Server.";
+          type = types.nullOr (
+            submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecOAuthIntroClientConfigTls"
+          );
+        };
+        "tokenTypeHint" = mkOption {
+          description = "TokenTypeHint is a hint to pass to the Authorization Server.\nSee https://tools.ietf.org/html/rfc7662#section-2.1 for more information.";
+          type = types.nullOr types.str;
+        };
+        "url" = mkOption {
+          description = "URL of the Authorization Server.";
+          type = types.str;
+        };
+      };
+
+      config = {
+        "headers" = mkOverride 1002 null;
+        "maxRetries" = mkOverride 1002 null;
+        "timeoutSeconds" = mkOverride 1002 null;
+        "tls" = mkOverride 1002 null;
+        "tokenTypeHint" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecOAuthIntroClientConfigTls" = {
+      options = {
+        "ca" = mkOption {
+          description = "CA sets the CA bundle used to sign the Authorization Server certificate.";
+          type = types.nullOr types.str;
+        };
+        "insecureSkipVerify" = mkOption {
+          description = "InsecureSkipVerify skips the Authorization Server certificate validation.\nFor testing purposes only, do not use in production.";
+          type = types.nullOr types.bool;
+        };
+      };
+
+      config = {
+        "ca" = mkOverride 1002 null;
+        "insecureSkipVerify" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecOAuthIntroTokenSource" = {
+      options = {
+        "cookie" = mkOption {
+          description = "Cookie is the name of a cookie.";
+          type = types.nullOr types.str;
+        };
+        "header" = mkOption {
+          description = "Header is the name of a header.";
+          type = types.nullOr types.str;
+        };
+        "headerAuthScheme" = mkOption {
+          description = "HeaderAuthScheme sets an optional auth scheme when Header is set to \"Authorization\".\nIf set, this scheme is removed from the token, and all requests not including it are dropped.";
+          type = types.nullOr types.str;
+        };
+        "query" = mkOption {
+          description = "Query is the name of a query parameter.";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "cookie" = mkOverride 1002 null;
+        "header" = mkOverride 1002 null;
+        "headerAuthScheme" = mkOverride 1002 null;
+        "query" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecOidc" = {
+      options = {
+        "authParams" = mkOption {
+          description = "";
+          type = types.nullOr (types.attrsOf types.str);
+        };
+        "claims" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "clientId" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "disableAuthRedirectionPaths" = mkOption {
+          description = "";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "forwardHeaders" = mkOption {
+          description = "";
+          type = types.nullOr (types.attrsOf types.str);
+        };
+        "issuer" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "logoutUrl" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "redirectUrl" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "scopes" = mkOption {
+          description = "";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "secret" = mkOption {
+          description = "SecretReference represents a Secret Reference. It has enough information to retrieve secret\nin any namespace";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecOidcSecret");
+        };
+        "session" = mkOption {
+          description = "Session holds session configuration.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecOidcSession");
+        };
+        "stateCookie" = mkOption {
+          description = "StateCookie holds state cookie configuration.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecOidcStateCookie");
+        };
+      };
+
+      config = {
+        "authParams" = mkOverride 1002 null;
+        "claims" = mkOverride 1002 null;
+        "clientId" = mkOverride 1002 null;
+        "disableAuthRedirectionPaths" = mkOverride 1002 null;
+        "forwardHeaders" = mkOverride 1002 null;
+        "issuer" = mkOverride 1002 null;
+        "logoutUrl" = mkOverride 1002 null;
+        "redirectUrl" = mkOverride 1002 null;
+        "scopes" = mkOverride 1002 null;
+        "secret" = mkOverride 1002 null;
+        "session" = mkOverride 1002 null;
+        "stateCookie" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecOidcGoogle" = {
+      options = {
+        "authParams" = mkOption {
+          description = "";
+          type = types.nullOr (types.attrsOf types.str);
+        };
+        "clientId" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "emails" = mkOption {
+          description = "Emails are the allowed emails to connect.";
+          type = types.nullOr (types.listOf types.str);
+        };
+        "forwardHeaders" = mkOption {
+          description = "";
+          type = types.nullOr (types.attrsOf types.str);
+        };
+        "logoutUrl" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "redirectUrl" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "secret" = mkOption {
+          description = "SecretReference represents a Secret Reference. It has enough information to retrieve secret\nin any namespace";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecOidcGoogleSecret");
+        };
+        "session" = mkOption {
+          description = "Session holds session configuration.";
+          type = types.nullOr (
+            submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecOidcGoogleSession"
+          );
+        };
+        "stateCookie" = mkOption {
+          description = "StateCookie holds state cookie configuration.";
+          type = types.nullOr (
+            submoduleOf "hub.traefik.io.v1alpha1.AccessControlPolicySpecOidcGoogleStateCookie"
+          );
+        };
+      };
+
+      config = {
+        "authParams" = mkOverride 1002 null;
+        "clientId" = mkOverride 1002 null;
+        "emails" = mkOverride 1002 null;
+        "forwardHeaders" = mkOverride 1002 null;
+        "logoutUrl" = mkOverride 1002 null;
+        "redirectUrl" = mkOverride 1002 null;
+        "secret" = mkOverride 1002 null;
+        "session" = mkOverride 1002 null;
+        "stateCookie" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecOidcGoogleSecret" = {
+      options = {
+        "name" = mkOption {
+          description = "name is unique within a namespace to reference a secret resource.";
+          type = types.nullOr types.str;
+        };
+        "namespace" = mkOption {
+          description = "namespace defines the space within which the secret name must be unique.";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "name" = mkOverride 1002 null;
+        "namespace" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecOidcGoogleSession" = {
+      options = {
+        "domain" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "path" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "refresh" = mkOption {
+          description = "";
+          type = types.nullOr types.bool;
+        };
+        "sameSite" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "secure" = mkOption {
+          description = "";
+          type = types.nullOr types.bool;
+        };
+      };
+
+      config = {
+        "domain" = mkOverride 1002 null;
+        "path" = mkOverride 1002 null;
+        "refresh" = mkOverride 1002 null;
+        "sameSite" = mkOverride 1002 null;
+        "secure" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecOidcGoogleStateCookie" = {
+      options = {
+        "domain" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "path" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "sameSite" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "secure" = mkOption {
+          description = "";
+          type = types.nullOr types.bool;
+        };
+      };
+
+      config = {
+        "domain" = mkOverride 1002 null;
+        "path" = mkOverride 1002 null;
+        "sameSite" = mkOverride 1002 null;
+        "secure" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecOidcSecret" = {
+      options = {
+        "name" = mkOption {
+          description = "name is unique within a namespace to reference a secret resource.";
+          type = types.nullOr types.str;
+        };
+        "namespace" = mkOption {
+          description = "namespace defines the space within which the secret name must be unique.";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "name" = mkOverride 1002 null;
+        "namespace" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecOidcSession" = {
+      options = {
+        "domain" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "path" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "refresh" = mkOption {
+          description = "";
+          type = types.nullOr types.bool;
+        };
+        "sameSite" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "secure" = mkOption {
+          description = "";
+          type = types.nullOr types.bool;
+        };
+      };
+
+      config = {
+        "domain" = mkOverride 1002 null;
+        "path" = mkOverride 1002 null;
+        "refresh" = mkOverride 1002 null;
+        "sameSite" = mkOverride 1002 null;
+        "secure" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicySpecOidcStateCookie" = {
+      options = {
+        "domain" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "path" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "sameSite" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "secure" = mkOption {
+          description = "";
+          type = types.nullOr types.bool;
+        };
+      };
+
+      config = {
+        "domain" = mkOverride 1002 null;
+        "path" = mkOverride 1002 null;
+        "sameSite" = mkOverride 1002 null;
+        "secure" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.AccessControlPolicyStatus" = {
+      options = {
+        "specHash" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "syncedAt" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "version" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "specHash" = mkOverride 1002 null;
+        "syncedAt" = mkOverride 1002 null;
+        "version" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.ManagedApplication" = {
+      options = {
+        "apiVersion" = mkOption {
+          description = "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources";
+          type = types.nullOr types.str;
+        };
+        "kind" = mkOption {
+          description = "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds";
+          type = types.nullOr types.str;
+        };
+        "metadata" = mkOption {
+          description = "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata";
+          type = types.nullOr (globalSubmoduleOf "io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta");
+        };
+        "spec" = mkOption {
+          description = "ManagedApplicationSpec describes the ManagedApplication.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.ManagedApplicationSpec");
+        };
+        "status" = mkOption {
+          description = "The current status of this ManagedApplication.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.ManagedApplicationStatus");
+        };
+      };
+
+      config = {
+        "apiVersion" = mkOverride 1002 null;
+        "kind" = mkOverride 1002 null;
+        "metadata" = mkOverride 1002 null;
+        "spec" = mkOverride 1002 null;
+        "status" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.ManagedApplicationSpec" = {
+      options = {
+        "apiKeys" = mkOption {
+          description = "APIKeys references the API keys used to authenticate the application when calling APIs.";
+          type = types.nullOr (
+            types.listOf (submoduleOf "hub.traefik.io.v1alpha1.ManagedApplicationSpecApiKeys")
+          );
+        };
+        "appId" = mkOption {
+          description = "AppID is the identifier of the ManagedApplication.\nIt should be unique.";
+          type = types.str;
+        };
+        "notes" = mkOption {
+          description = "Notes contains notes about application.";
+          type = types.nullOr types.str;
+        };
+        "owner" = mkOption {
+          description = "Owner represents the owner of the ManagedApplication.\nIt should be:\n- `sub` when using OIDC\n- `externalID` when using external IDP";
+          type = types.str;
+        };
+      };
+
+      config = {
+        "apiKeys" = mkOverride 1002 null;
+        "notes" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.ManagedApplicationSpecApiKeys" = {
+      options = {
+        "secretName" = mkOption {
+          description = "SecretName references the name of the secret containing the API key.";
+          type = types.nullOr types.str;
+        };
+        "suspended" = mkOption {
+          description = "";
+          type = types.nullOr types.bool;
+        };
+        "title" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "value" = mkOption {
+          description = "Value is the API key value.";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "secretName" = mkOverride 1002 null;
+        "suspended" = mkOverride 1002 null;
+        "title" = mkOverride 1002 null;
+        "value" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.ManagedApplicationStatus" = {
+      options = {
+        "apiKeyVersions" = mkOption {
+          description = "";
+          type = types.nullOr (types.attrsOf types.str);
+        };
+        "hash" = mkOption {
+          description = "Hash is a hash representing the ManagedApplication.";
+          type = types.nullOr types.str;
+        };
+        "syncedAt" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "version" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "apiKeyVersions" = mkOverride 1002 null;
+        "hash" = mkOverride 1002 null;
+        "syncedAt" = mkOverride 1002 null;
+        "version" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.ManagedSubscription" = {
+      options = {
+        "apiVersion" = mkOption {
+          description = "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources";
+          type = types.nullOr types.str;
+        };
+        "kind" = mkOption {
+          description = "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds";
+          type = types.nullOr types.str;
+        };
+        "metadata" = mkOption {
+          description = "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata";
+          type = types.nullOr (globalSubmoduleOf "io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta");
+        };
+        "spec" = mkOption {
+          description = "The desired behavior of this ManagedSubscription.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.ManagedSubscriptionSpec");
+        };
+        "status" = mkOption {
+          description = "The current status of this ManagedSubscription.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.ManagedSubscriptionStatus");
+        };
+      };
+
+      config = {
+        "apiVersion" = mkOverride 1002 null;
+        "kind" = mkOverride 1002 null;
+        "metadata" = mkOverride 1002 null;
+        "spec" = mkOverride 1002 null;
+        "status" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.ManagedSubscriptionSpec" = {
+      options = {
+        "apiBundles" = mkOption {
+          description = "APIBundles defines a set of APIBundle that will be accessible.\nMultiple ManagedSubscriptions can select the same APIBundles.";
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "hub.traefik.io.v1alpha1.ManagedSubscriptionSpecApiBundles"
+              "name"
+              [ ]
+          );
+          apply = attrsToList;
+        };
+        "apiPlan" = mkOption {
+          description = "APIPlan defines which APIPlan will be used.";
+          type = submoduleOf "hub.traefik.io.v1alpha1.ManagedSubscriptionSpecApiPlan";
+        };
+        "apiSelector" = mkOption {
+          description = "APISelector selects the APIs that will be accessible.\nMultiple ManagedSubscriptions can select the same set of APIs.\nThis field is optional and follows standard label selector semantics.\nAn empty APISelector matches any API.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.ManagedSubscriptionSpecApiSelector");
+        };
+        "apis" = mkOption {
+          description = "APIs defines a set of APIs that will be accessible.\nMultiple ManagedSubscriptions can select the same APIs.\nWhen combined with APISelector, this set of APIs is appended to the matching APIs.";
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "hub.traefik.io.v1alpha1.ManagedSubscriptionSpecApis" "name" [ ]
+          );
+          apply = attrsToList;
+        };
+        "applications" = mkOption {
+          description = "Applications references the Applications that will gain access to the specified APIs.\nMultiple ManagedSubscriptions can select the same AppID.\nDeprecated: Use ManagedApplications instead.";
+          type = types.nullOr (
+            types.listOf (submoduleOf "hub.traefik.io.v1alpha1.ManagedSubscriptionSpecApplications")
+          );
+        };
+        "claims" = mkOption {
+          description = "Claims specifies an expression that validate claims in order to authorize the request.";
+          type = types.nullOr types.str;
+        };
+        "managedApplications" = mkOption {
+          description = "ManagedApplications references the ManagedApplications that will gain access to the specified APIs.\nMultiple ManagedSubscriptions can select the same ManagedApplication.";
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey
+              "hub.traefik.io.v1alpha1.ManagedSubscriptionSpecManagedApplications"
+              "name"
+              [ ]
+          );
+          apply = attrsToList;
+        };
+        "operationFilter" = mkOption {
+          description = "OperationFilter specifies the allowed operations on APIs and APIVersions.\nIf not set, all operations are available.\nAn empty OperationFilter prohibits all operations.";
+          type = types.nullOr (submoduleOf "hub.traefik.io.v1alpha1.ManagedSubscriptionSpecOperationFilter");
+        };
+        "weight" = mkOption {
+          description = "Weight specifies the evaluation order of the APIPlan.\nWhen multiple ManagedSubscriptions targets the same API and Application with different APIPlan,\nthe APIPlan with the highest weight will be enforced. If weights are equal, alphabetical order is used.";
+          type = types.nullOr types.int;
+        };
+      };
+
+      config = {
+        "apiBundles" = mkOverride 1002 null;
+        "apiSelector" = mkOverride 1002 null;
+        "apis" = mkOverride 1002 null;
+        "applications" = mkOverride 1002 null;
+        "claims" = mkOverride 1002 null;
+        "managedApplications" = mkOverride 1002 null;
+        "operationFilter" = mkOverride 1002 null;
+        "weight" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.ManagedSubscriptionSpecApiBundles" = {
+      options = {
+        "name" = mkOption {
+          description = "Name of the APIBundle.";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.ManagedSubscriptionSpecApiPlan" = {
+      options = {
+        "name" = mkOption {
+          description = "Name of the APIPlan.";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.ManagedSubscriptionSpecApiSelector" = {
+      options = {
+        "matchExpressions" = mkOption {
+          description = "matchExpressions is a list of label selector requirements. The requirements are ANDed.";
+          type = types.nullOr (
+            types.listOf (
+              submoduleOf "hub.traefik.io.v1alpha1.ManagedSubscriptionSpecApiSelectorMatchExpressions"
+            )
+          );
+        };
+        "matchLabels" = mkOption {
+          description = "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.";
+          type = types.nullOr (types.attrsOf types.str);
+        };
+      };
+
+      config = {
+        "matchExpressions" = mkOverride 1002 null;
+        "matchLabels" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.ManagedSubscriptionSpecApiSelectorMatchExpressions" = {
+      options = {
+        "key" = mkOption {
+          description = "key is the label key that the selector applies to.";
+          type = types.str;
+        };
+        "operator" = mkOption {
+          description = "operator represents a key's relationship to a set of values.\nValid operators are In, NotIn, Exists and DoesNotExist.";
+          type = types.str;
+        };
+        "values" = mkOption {
+          description = "values is an array of string values. If the operator is In or NotIn,\nthe values array must be non-empty. If the operator is Exists or DoesNotExist,\nthe values array must be empty. This array is replaced during a strategic\nmerge patch.";
+          type = types.nullOr (types.listOf types.str);
+        };
+      };
+
+      config = {
+        "values" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.ManagedSubscriptionSpecApis" = {
+      options = {
+        "name" = mkOption {
+          description = "Name of the API.";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.ManagedSubscriptionSpecApplications" = {
+      options = {
+        "appId" = mkOption {
+          description = "AppID is the public identifier of the application.\nIn the case of OIDC, it corresponds to the clientId.";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.ManagedSubscriptionSpecManagedApplications" = {
+      options = {
+        "name" = mkOption {
+          description = "Name is the name of the ManagedApplication.";
+          type = types.str;
+        };
+      };
+
+      config = { };
+    };
+    "hub.traefik.io.v1alpha1.ManagedSubscriptionSpecOperationFilter" = {
+      options = {
+        "include" = mkOption {
+          description = "Include defines the names of OperationSets that will be accessible.";
+          type = types.nullOr (types.listOf types.str);
+        };
+      };
+
+      config = {
+        "include" = mkOverride 1002 null;
+      };
+    };
+    "hub.traefik.io.v1alpha1.ManagedSubscriptionStatus" = {
+      options = {
+        "hash" = mkOption {
+          description = "Hash is a hash representing the ManagedSubscription.";
+          type = types.nullOr types.str;
+        };
+        "syncedAt" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+        "version" = mkOption {
+          description = "";
+          type = types.nullOr types.str;
+        };
+      };
+
+      config = {
+        "hash" = mkOverride 1002 null;
+        "syncedAt" = mkOverride 1002 null;
+        "version" = mkOverride 1002 null;
+      };
+    };
     "traefik.io.v1alpha1.IngressRoute" = {
       options = {
         "apiVersion" = mkOption {
@@ -216,7 +3135,10 @@ with lib; let
         };
         "middlewares" = mkOption {
           description = "Middlewares defines the list of references to Middleware resources.\nMore info: https://doc.traefik.io/traefik/v3.4/routing/providers/kubernetes-crd/#kind-middleware";
-          type = types.nullOr (coerceAttrsOfSubmodulesToListByKey "traefik.io.v1alpha1.IngressRouteSpecRoutesMiddlewares" "name" []);
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "traefik.io.v1alpha1.IngressRouteSpecRoutesMiddlewares" "name"
+              [ ]
+          );
           apply = attrsToList;
         };
         "observability" = mkOption {
@@ -229,7 +3151,9 @@ with lib; let
         };
         "services" = mkOption {
           description = "Services defines the list of Service.\nIt can contain any combination of TraefikService and/or reference to a Kubernetes Service.";
-          type = types.nullOr (coerceAttrsOfSubmodulesToListByKey "traefik.io.v1alpha1.IngressRouteSpecRoutesServices" "name" []);
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "traefik.io.v1alpha1.IngressRouteSpecRoutesServices" "name" [ ]
+          );
           apply = attrsToList;
         };
         "syntax" = mkOption {
@@ -321,7 +3245,9 @@ with lib; let
         };
         "responseForwarding" = mkOption {
           description = "ResponseForwarding defines how Traefik forwards the response from the upstream Kubernetes Service to the client.";
-          type = types.nullOr (submoduleOf "traefik.io.v1alpha1.IngressRouteSpecRoutesServicesResponseForwarding");
+          type = types.nullOr (
+            submoduleOf "traefik.io.v1alpha1.IngressRouteSpecRoutesServicesResponseForwarding"
+          );
         };
         "scheme" = mkOption {
           description = "Scheme defines the scheme to use for the request to the upstream Kubernetes Service.\nIt defaults to https when Kubernetes Service port is 443, http otherwise.";
@@ -624,7 +3550,10 @@ with lib; let
         };
         "middlewares" = mkOption {
           description = "Middlewares defines the list of references to MiddlewareTCP resources.";
-          type = types.nullOr (coerceAttrsOfSubmodulesToListByKey "traefik.io.v1alpha1.IngressRouteTCPSpecRoutesMiddlewares" "name" []);
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "traefik.io.v1alpha1.IngressRouteTCPSpecRoutesMiddlewares" "name"
+              [ ]
+          );
           apply = attrsToList;
         };
         "priority" = mkOption {
@@ -633,7 +3562,10 @@ with lib; let
         };
         "services" = mkOption {
           description = "Services defines the list of TCP services.";
-          type = types.nullOr (coerceAttrsOfSubmodulesToListByKey "traefik.io.v1alpha1.IngressRouteTCPSpecRoutesServices" "name" []);
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "traefik.io.v1alpha1.IngressRouteTCPSpecRoutesServices" "name"
+              [ ]
+          );
           apply = attrsToList;
         };
         "syntax" = mkOption {
@@ -689,7 +3621,9 @@ with lib; let
         };
         "proxyProtocol" = mkOption {
           description = "ProxyProtocol defines the PROXY protocol configuration.\nMore info: https://doc.traefik.io/traefik/v3.4/routing/services/#proxy-protocol";
-          type = types.nullOr (submoduleOf "traefik.io.v1alpha1.IngressRouteTCPSpecRoutesServicesProxyProtocol");
+          type = types.nullOr (
+            submoduleOf "traefik.io.v1alpha1.IngressRouteTCPSpecRoutesServicesProxyProtocol"
+          );
         };
         "serversTransport" = mkOption {
           description = "ServersTransport defines the name of ServersTransportTCP resource to use.\nIt allows to configure the transport between Traefik and your servers.\nCan only be used on a Kubernetes Service.";
@@ -740,7 +3674,9 @@ with lib; let
         };
         "domains" = mkOption {
           description = "Domains defines the list of domains that will be used to issue certificates.\nMore info: https://doc.traefik.io/traefik/v3.4/routing/routers/#domains";
-          type = types.nullOr (types.listOf (submoduleOf "traefik.io.v1alpha1.IngressRouteTCPSpecTlsDomains"));
+          type = types.nullOr (
+            types.listOf (submoduleOf "traefik.io.v1alpha1.IngressRouteTCPSpecTlsDomains")
+          );
         };
         "options" = mkOption {
           description = "Options defines the reference to a TLSOption, that specifies the parameters of the TLS connection.\nIf not defined, the `default` TLSOption is used.\nMore info: https://doc.traefik.io/traefik/v3.4/https/tls/#tls-options";
@@ -863,7 +3799,10 @@ with lib; let
       options = {
         "services" = mkOption {
           description = "Services defines the list of UDP services.";
-          type = types.nullOr (coerceAttrsOfSubmodulesToListByKey "traefik.io.v1alpha1.IngressRouteUDPSpecRoutesServices" "name" []);
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "traefik.io.v1alpha1.IngressRouteUDPSpecRoutesServices" "name"
+              [ ]
+          );
           apply = attrsToList;
         };
       };
@@ -1139,7 +4078,9 @@ with lib; let
       options = {
         "middlewares" = mkOption {
           description = "Middlewares is the list of MiddlewareRef which composes the chain.";
-          type = types.nullOr (coerceAttrsOfSubmodulesToListByKey "traefik.io.v1alpha1.MiddlewareSpecChainMiddlewares" "name" []);
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "traefik.io.v1alpha1.MiddlewareSpecChainMiddlewares" "name" [ ]
+          );
           apply = attrsToList;
         };
       };
@@ -1330,7 +4271,9 @@ with lib; let
         };
         "responseForwarding" = mkOption {
           description = "ResponseForwarding defines how Traefik forwards the response from the upstream Kubernetes Service to the client.";
-          type = types.nullOr (submoduleOf "traefik.io.v1alpha1.MiddlewareSpecErrorsServiceResponseForwarding");
+          type = types.nullOr (
+            submoduleOf "traefik.io.v1alpha1.MiddlewareSpecErrorsServiceResponseForwarding"
+          );
         };
         "scheme" = mkOption {
           description = "Scheme defines the scheme to use for the request to the upstream Kubernetes Service.\nIt defaults to https when Kubernetes Service port is 443, http otherwise.";
@@ -1797,7 +4740,9 @@ with lib; let
       options = {
         "ipStrategy" = mkOption {
           description = "IPStrategy holds the IP strategy configuration used by Traefik to determine the client IP.\nMore info: https://doc.traefik.io/traefik/v3.4/middlewares/http/ipallowlist/#ipstrategy";
-          type = types.nullOr (submoduleOf "traefik.io.v1alpha1.MiddlewareSpecInFlightReqSourceCriterionIpStrategy");
+          type = types.nullOr (
+            submoduleOf "traefik.io.v1alpha1.MiddlewareSpecInFlightReqSourceCriterionIpStrategy"
+          );
         };
         "requestHeaderName" = mkOption {
           description = "RequestHeaderName defines the name of the header used to group incoming requests.";
@@ -2178,7 +5123,9 @@ with lib; let
       options = {
         "ipStrategy" = mkOption {
           description = "IPStrategy holds the IP strategy configuration used by Traefik to determine the client IP.\nMore info: https://doc.traefik.io/traefik/v3.4/middlewares/http/ipallowlist/#ipstrategy";
-          type = types.nullOr (submoduleOf "traefik.io.v1alpha1.MiddlewareSpecRateLimitSourceCriterionIpStrategy");
+          type = types.nullOr (
+            submoduleOf "traefik.io.v1alpha1.MiddlewareSpecRateLimitSourceCriterionIpStrategy"
+          );
         };
         "requestHeaderName" = mkOption {
           description = "RequestHeaderName defines the name of the header used to group incoming requests.";
@@ -2636,7 +5583,9 @@ with lib; let
         };
         "rootCAs" = mkOption {
           description = "RootCAs defines a list of CA certificate Secrets or ConfigMaps used to validate server certificates.";
-          type = types.nullOr (types.listOf (submoduleOf "traefik.io.v1alpha1.ServersTransportTCPSpecTlsRootCAs"));
+          type = types.nullOr (
+            types.listOf (submoduleOf "traefik.io.v1alpha1.ServersTransportTCPSpecTlsRootCAs")
+          );
         };
         "rootCAsSecrets" = mkOption {
           description = "RootCAsSecrets defines a list of CA secret used to validate self-signed certificate.\nDeprecated: RootCAsSecrets is deprecated, please use the RootCAs option instead.";
@@ -2845,7 +5794,7 @@ with lib; let
         };
       };
 
-      config = {};
+      config = { };
     };
     "traefik.io.v1alpha1.TLSStoreSpecDefaultCertificate" = {
       options = {
@@ -2855,7 +5804,7 @@ with lib; let
         };
       };
 
-      config = {};
+      config = { };
     };
     "traefik.io.v1alpha1.TLSStoreSpecDefaultGeneratedCert" = {
       options = {
@@ -2953,7 +5902,10 @@ with lib; let
         };
         "mirrors" = mkOption {
           description = "Mirrors defines the list of mirrors where Traefik will duplicate the traffic.";
-          type = types.nullOr (coerceAttrsOfSubmodulesToListByKey "traefik.io.v1alpha1.TraefikServiceSpecMirroringMirrors" "name" []);
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "traefik.io.v1alpha1.TraefikServiceSpecMirroringMirrors" "name"
+              [ ]
+          );
           apply = attrsToList;
         };
         "name" = mkOption {
@@ -2982,7 +5934,9 @@ with lib; let
         };
         "responseForwarding" = mkOption {
           description = "ResponseForwarding defines how Traefik forwards the response from the upstream Kubernetes Service to the client.";
-          type = types.nullOr (submoduleOf "traefik.io.v1alpha1.TraefikServiceSpecMirroringResponseForwarding");
+          type = types.nullOr (
+            submoduleOf "traefik.io.v1alpha1.TraefikServiceSpecMirroringResponseForwarding"
+          );
         };
         "scheme" = mkOption {
           description = "Scheme defines the scheme to use for the request to the upstream Kubernetes Service.\nIt defaults to https when Kubernetes Service port is 443, http otherwise.";
@@ -3091,7 +6045,9 @@ with lib; let
       options = {
         "healthCheck" = mkOption {
           description = "Healthcheck defines health checks for ExternalName services.";
-          type = types.nullOr (submoduleOf "traefik.io.v1alpha1.TraefikServiceSpecMirroringMirrorsHealthCheck");
+          type = types.nullOr (
+            submoduleOf "traefik.io.v1alpha1.TraefikServiceSpecMirroringMirrorsHealthCheck"
+          );
         };
         "kind" = mkOption {
           description = "Kind defines the kind of the Service.";
@@ -3127,7 +6083,9 @@ with lib; let
         };
         "responseForwarding" = mkOption {
           description = "ResponseForwarding defines how Traefik forwards the response from the upstream Kubernetes Service to the client.";
-          type = types.nullOr (submoduleOf "traefik.io.v1alpha1.TraefikServiceSpecMirroringMirrorsResponseForwarding");
+          type = types.nullOr (
+            submoduleOf "traefik.io.v1alpha1.TraefikServiceSpecMirroringMirrorsResponseForwarding"
+          );
         };
         "scheme" = mkOption {
           description = "Scheme defines the scheme to use for the request to the upstream Kubernetes Service.\nIt defaults to https when Kubernetes Service port is 443, http otherwise.";
@@ -3246,7 +6204,9 @@ with lib; let
       options = {
         "cookie" = mkOption {
           description = "Cookie defines the sticky cookie configuration.";
-          type = types.nullOr (submoduleOf "traefik.io.v1alpha1.TraefikServiceSpecMirroringMirrorsStickyCookie");
+          type = types.nullOr (
+            submoduleOf "traefik.io.v1alpha1.TraefikServiceSpecMirroringMirrorsStickyCookie"
+          );
         };
       };
 
@@ -3366,7 +6326,10 @@ with lib; let
       options = {
         "services" = mkOption {
           description = "Services defines the list of Kubernetes Service and/or TraefikService to load-balance, with weight.";
-          type = types.nullOr (coerceAttrsOfSubmodulesToListByKey "traefik.io.v1alpha1.TraefikServiceSpecWeightedServices" "name" []);
+          type = types.nullOr (
+            coerceAttrsOfSubmodulesToListByKey "traefik.io.v1alpha1.TraefikServiceSpecWeightedServices" "name"
+              [ ]
+          );
           apply = attrsToList;
         };
         "sticky" = mkOption {
@@ -3384,7 +6347,9 @@ with lib; let
       options = {
         "healthCheck" = mkOption {
           description = "Healthcheck defines health checks for ExternalName services.";
-          type = types.nullOr (submoduleOf "traefik.io.v1alpha1.TraefikServiceSpecWeightedServicesHealthCheck");
+          type = types.nullOr (
+            submoduleOf "traefik.io.v1alpha1.TraefikServiceSpecWeightedServicesHealthCheck"
+          );
         };
         "kind" = mkOption {
           description = "Kind defines the kind of the Service.";
@@ -3416,7 +6381,9 @@ with lib; let
         };
         "responseForwarding" = mkOption {
           description = "ResponseForwarding defines how Traefik forwards the response from the upstream Kubernetes Service to the client.";
-          type = types.nullOr (submoduleOf "traefik.io.v1alpha1.TraefikServiceSpecWeightedServicesResponseForwarding");
+          type = types.nullOr (
+            submoduleOf "traefik.io.v1alpha1.TraefikServiceSpecWeightedServicesResponseForwarding"
+          );
         };
         "scheme" = mkOption {
           description = "Scheme defines the scheme to use for the request to the upstream Kubernetes Service.\nIt defaults to https when Kubernetes Service port is 443, http otherwise.";
@@ -3534,7 +6501,9 @@ with lib; let
       options = {
         "cookie" = mkOption {
           description = "Cookie defines the sticky cookie configuration.";
-          type = types.nullOr (submoduleOf "traefik.io.v1alpha1.TraefikServiceSpecWeightedServicesStickyCookie");
+          type = types.nullOr (
+            submoduleOf "traefik.io.v1alpha1.TraefikServiceSpecWeightedServicesStickyCookie"
+          );
         };
       };
 
@@ -3639,114 +6608,380 @@ with lib; let
       };
     };
   };
-in {
+in
+{
   # all resource versions
   options = {
-    resources =
-      {
-        "traefik.io"."v1alpha1"."IngressRoute" = mkOption {
-          description = "IngressRoute is the CRD implementation of a Traefik HTTP Router.";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.IngressRoute" "ingressroutes" "IngressRoute" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "traefik.io"."v1alpha1"."IngressRouteTCP" = mkOption {
-          description = "IngressRouteTCP is the CRD implementation of a Traefik TCP Router.";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.IngressRouteTCP" "ingressroutetcps" "IngressRouteTCP" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "traefik.io"."v1alpha1"."IngressRouteUDP" = mkOption {
-          description = "IngressRouteUDP is a CRD implementation of a Traefik UDP Router.";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.IngressRouteUDP" "ingressrouteudps" "IngressRouteUDP" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "traefik.io"."v1alpha1"."Middleware" = mkOption {
-          description = "Middleware is the CRD implementation of a Traefik Middleware.\nMore info: https://doc.traefik.io/traefik/v3.4/middlewares/http/overview/";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.Middleware" "middlewares" "Middleware" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "traefik.io"."v1alpha1"."MiddlewareTCP" = mkOption {
-          description = "MiddlewareTCP is the CRD implementation of a Traefik TCP middleware.\nMore info: https://doc.traefik.io/traefik/v3.4/middlewares/overview/";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.MiddlewareTCP" "middlewaretcps" "MiddlewareTCP" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "traefik.io"."v1alpha1"."ServersTransport" = mkOption {
-          description = "ServersTransport is the CRD implementation of a ServersTransport.\nIf no serversTransport is specified, the default@internal will be used.\nThe default@internal serversTransport is created from the static configuration.\nMore info: https://doc.traefik.io/traefik/v3.4/routing/services/#serverstransport_1";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.ServersTransport" "serverstransports" "ServersTransport" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "traefik.io"."v1alpha1"."ServersTransportTCP" = mkOption {
-          description = "ServersTransportTCP is the CRD implementation of a TCPServersTransport.\nIf no tcpServersTransport is specified, a default one named default@internal will be used.\nThe default@internal tcpServersTransport can be configured in the static configuration.\nMore info: https://doc.traefik.io/traefik/v3.4/routing/services/#serverstransport_3";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.ServersTransportTCP" "serverstransporttcps" "ServersTransportTCP" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "traefik.io"."v1alpha1"."TLSOption" = mkOption {
-          description = "TLSOption is the CRD implementation of a Traefik TLS Option, allowing to configure some parameters of the TLS connection.\nMore info: https://doc.traefik.io/traefik/v3.4/https/tls/#tls-options";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.TLSOption" "tlsoptions" "TLSOption" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "traefik.io"."v1alpha1"."TLSStore" = mkOption {
-          description = "TLSStore is the CRD implementation of a Traefik TLS Store.\nFor the time being, only the TLSStore named default is supported.\nThis means that you cannot have two stores that are named default in different Kubernetes namespaces.\nMore info: https://doc.traefik.io/traefik/v3.4/https/tls/#certificates-stores";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.TLSStore" "tlsstores" "TLSStore" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "traefik.io"."v1alpha1"."TraefikService" = mkOption {
-          description = "TraefikService is the CRD implementation of a Traefik Service.\nTraefikService object allows to:\n- Apply weight to Services on load-balancing\n- Mirror traffic on services\nMore info: https://doc.traefik.io/traefik/v3.4/routing/providers/kubernetes-crd/#kind-traefikservice";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.TraefikService" "traefikservices" "TraefikService" "traefik.io" "v1alpha1");
-          default = {};
-        };
-      }
-      // {
-        "ingressRoutes" = mkOption {
-          description = "IngressRoute is the CRD implementation of a Traefik HTTP Router.";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.IngressRoute" "ingressroutes" "IngressRoute" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "ingressRouteTCPs" = mkOption {
-          description = "IngressRouteTCP is the CRD implementation of a Traefik TCP Router.";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.IngressRouteTCP" "ingressroutetcps" "IngressRouteTCP" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "ingressRouteUDPs" = mkOption {
-          description = "IngressRouteUDP is a CRD implementation of a Traefik UDP Router.";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.IngressRouteUDP" "ingressrouteudps" "IngressRouteUDP" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "middlewares" = mkOption {
-          description = "Middleware is the CRD implementation of a Traefik Middleware.\nMore info: https://doc.traefik.io/traefik/v3.4/middlewares/http/overview/";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.Middleware" "middlewares" "Middleware" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "middlewareTCPs" = mkOption {
-          description = "MiddlewareTCP is the CRD implementation of a Traefik TCP middleware.\nMore info: https://doc.traefik.io/traefik/v3.4/middlewares/overview/";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.MiddlewareTCP" "middlewaretcps" "MiddlewareTCP" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "serversTransports" = mkOption {
-          description = "ServersTransport is the CRD implementation of a ServersTransport.\nIf no serversTransport is specified, the default@internal will be used.\nThe default@internal serversTransport is created from the static configuration.\nMore info: https://doc.traefik.io/traefik/v3.4/routing/services/#serverstransport_1";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.ServersTransport" "serverstransports" "ServersTransport" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "serversTransportTCPs" = mkOption {
-          description = "ServersTransportTCP is the CRD implementation of a TCPServersTransport.\nIf no tcpServersTransport is specified, a default one named default@internal will be used.\nThe default@internal tcpServersTransport can be configured in the static configuration.\nMore info: https://doc.traefik.io/traefik/v3.4/routing/services/#serverstransport_3";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.ServersTransportTCP" "serverstransporttcps" "ServersTransportTCP" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "tlsOptions" = mkOption {
-          description = "TLSOption is the CRD implementation of a Traefik TLS Option, allowing to configure some parameters of the TLS connection.\nMore info: https://doc.traefik.io/traefik/v3.4/https/tls/#tls-options";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.TLSOption" "tlsoptions" "TLSOption" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "tlsStores" = mkOption {
-          description = "TLSStore is the CRD implementation of a Traefik TLS Store.\nFor the time being, only the TLSStore named default is supported.\nThis means that you cannot have two stores that are named default in different Kubernetes namespaces.\nMore info: https://doc.traefik.io/traefik/v3.4/https/tls/#certificates-stores";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.TLSStore" "tlsstores" "TLSStore" "traefik.io" "v1alpha1");
-          default = {};
-        };
-        "traefikServices" = mkOption {
-          description = "TraefikService is the CRD implementation of a Traefik Service.\nTraefikService object allows to:\n- Apply weight to Services on load-balancing\n- Mirror traffic on services\nMore info: https://doc.traefik.io/traefik/v3.4/routing/providers/kubernetes-crd/#kind-traefikservice";
-          type = types.attrsOf (submoduleForDefinition "traefik.io.v1alpha1.TraefikService" "traefikservices" "TraefikService" "traefik.io" "v1alpha1");
-          default = {};
-        };
+    resources = {
+      "hub.traefik.io"."v1alpha1"."AIService" = mkOption {
+        description = "AIService is a Kubernetes-like Service to interact with a text-based LLM provider. It defines the parameters and credentials required to interact with various LLM providers.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.AIService" "aiservices" "AIService" "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
       };
+      "hub.traefik.io"."v1alpha1"."API" = mkOption {
+        description = "API defines an HTTP interface that is exposed to external clients. It specifies the supported versions\nand provides instructions for accessing its documentation. Once instantiated, an API object is associated\nwith an Ingress, IngressRoute, or HTTPRoute resource, enabling the exposure of the described API to the outside world.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.API" "apis" "API" "hub.traefik.io" "v1alpha1"
+        );
+        default = { };
+      };
+      "hub.traefik.io"."v1alpha1"."APIBundle" = mkOption {
+        description = "APIBundle defines a set of APIs.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.APIBundle" "apibundles" "APIBundle" "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "hub.traefik.io"."v1alpha1"."APICatalogItem" = mkOption {
+        description = "APICatalogItem defines APIs that will be part of the API catalog on the portal.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.APICatalogItem" "apicatalogitems" "APICatalogItem"
+            "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "hub.traefik.io"."v1alpha1"."APIPlan" = mkOption {
+        description = "APIPlan defines API Plan policy.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.APIPlan" "apiplans" "APIPlan" "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "hub.traefik.io"."v1alpha1"."APIPortal" = mkOption {
+        description = "APIPortal defines a developer portal for accessing the documentation of APIs.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.APIPortal" "apiportals" "APIPortal" "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "hub.traefik.io"."v1alpha1"."APIRateLimit" = mkOption {
+        description = "APIRateLimit defines how group of consumers are rate limited on a set of APIs.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.APIRateLimit" "apiratelimits" "APIRateLimit"
+            "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "hub.traefik.io"."v1alpha1"."APIVersion" = mkOption {
+        description = "APIVersion defines a version of an API.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.APIVersion" "apiversions" "APIVersion"
+            "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "hub.traefik.io"."v1alpha1"."AccessControlPolicy" = mkOption {
+        description = "AccessControlPolicy defines an access control policy.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.AccessControlPolicy" "accesscontrolpolicies"
+            "AccessControlPolicy"
+            "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "hub.traefik.io"."v1alpha1"."ManagedApplication" = mkOption {
+        description = "ManagedApplication represents a managed application.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.ManagedApplication" "managedapplications"
+            "ManagedApplication"
+            "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "hub.traefik.io"."v1alpha1"."ManagedSubscription" = mkOption {
+        description = "ManagedSubscription defines a Subscription managed by the API manager as the result of a pre-negotiation with its\nAPI consumers. This subscription grant consuming access to a set of APIs to a set of Applications.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.ManagedSubscription" "managedsubscriptions"
+            "ManagedSubscription"
+            "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "traefik.io"."v1alpha1"."IngressRoute" = mkOption {
+        description = "IngressRoute is the CRD implementation of a Traefik HTTP Router.";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.IngressRoute" "ingressroutes" "IngressRoute"
+            "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "traefik.io"."v1alpha1"."IngressRouteTCP" = mkOption {
+        description = "IngressRouteTCP is the CRD implementation of a Traefik TCP Router.";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.IngressRouteTCP" "ingressroutetcps" "IngressRouteTCP"
+            "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "traefik.io"."v1alpha1"."IngressRouteUDP" = mkOption {
+        description = "IngressRouteUDP is a CRD implementation of a Traefik UDP Router.";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.IngressRouteUDP" "ingressrouteudps" "IngressRouteUDP"
+            "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "traefik.io"."v1alpha1"."Middleware" = mkOption {
+        description = "Middleware is the CRD implementation of a Traefik Middleware.\nMore info: https://doc.traefik.io/traefik/v3.4/middlewares/http/overview/";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.Middleware" "middlewares" "Middleware" "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "traefik.io"."v1alpha1"."MiddlewareTCP" = mkOption {
+        description = "MiddlewareTCP is the CRD implementation of a Traefik TCP middleware.\nMore info: https://doc.traefik.io/traefik/v3.4/middlewares/overview/";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.MiddlewareTCP" "middlewaretcps" "MiddlewareTCP"
+            "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "traefik.io"."v1alpha1"."ServersTransport" = mkOption {
+        description = "ServersTransport is the CRD implementation of a ServersTransport.\nIf no serversTransport is specified, the default@internal will be used.\nThe default@internal serversTransport is created from the static configuration.\nMore info: https://doc.traefik.io/traefik/v3.4/routing/services/#serverstransport_1";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.ServersTransport" "serverstransports" "ServersTransport"
+            "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "traefik.io"."v1alpha1"."ServersTransportTCP" = mkOption {
+        description = "ServersTransportTCP is the CRD implementation of a TCPServersTransport.\nIf no tcpServersTransport is specified, a default one named default@internal will be used.\nThe default@internal tcpServersTransport can be configured in the static configuration.\nMore info: https://doc.traefik.io/traefik/v3.4/routing/services/#serverstransport_3";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.ServersTransportTCP" "serverstransporttcps"
+            "ServersTransportTCP"
+            "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "traefik.io"."v1alpha1"."TLSOption" = mkOption {
+        description = "TLSOption is the CRD implementation of a Traefik TLS Option, allowing to configure some parameters of the TLS connection.\nMore info: https://doc.traefik.io/traefik/v3.4/https/tls/#tls-options";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.TLSOption" "tlsoptions" "TLSOption" "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "traefik.io"."v1alpha1"."TLSStore" = mkOption {
+        description = "TLSStore is the CRD implementation of a Traefik TLS Store.\nFor the time being, only the TLSStore named default is supported.\nThis means that you cannot have two stores that are named default in different Kubernetes namespaces.\nMore info: https://doc.traefik.io/traefik/v3.4/https/tls/#certificates-stores";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.TLSStore" "tlsstores" "TLSStore" "traefik.io" "v1alpha1"
+        );
+        default = { };
+      };
+      "traefik.io"."v1alpha1"."TraefikService" = mkOption {
+        description = "TraefikService is the CRD implementation of a Traefik Service.\nTraefikService object allows to:\n- Apply weight to Services on load-balancing\n- Mirror traffic on services\nMore info: https://doc.traefik.io/traefik/v3.4/routing/providers/kubernetes-crd/#kind-traefikservice";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.TraefikService" "traefikservices" "TraefikService"
+            "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+    }
+    // {
+      "aiServices" = mkOption {
+        description = "AIService is a Kubernetes-like Service to interact with a text-based LLM provider. It defines the parameters and credentials required to interact with various LLM providers.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.AIService" "aiservices" "AIService" "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "apis" = mkOption {
+        description = "API defines an HTTP interface that is exposed to external clients. It specifies the supported versions\nand provides instructions for accessing its documentation. Once instantiated, an API object is associated\nwith an Ingress, IngressRoute, or HTTPRoute resource, enabling the exposure of the described API to the outside world.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.API" "apis" "API" "hub.traefik.io" "v1alpha1"
+        );
+        default = { };
+      };
+      "apiBundles" = mkOption {
+        description = "APIBundle defines a set of APIs.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.APIBundle" "apibundles" "APIBundle" "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "apiCatalogItems" = mkOption {
+        description = "APICatalogItem defines APIs that will be part of the API catalog on the portal.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.APICatalogItem" "apicatalogitems" "APICatalogItem"
+            "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "apiPlans" = mkOption {
+        description = "APIPlan defines API Plan policy.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.APIPlan" "apiplans" "APIPlan" "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "apiPortals" = mkOption {
+        description = "APIPortal defines a developer portal for accessing the documentation of APIs.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.APIPortal" "apiportals" "APIPortal" "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "apiRateLimits" = mkOption {
+        description = "APIRateLimit defines how group of consumers are rate limited on a set of APIs.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.APIRateLimit" "apiratelimits" "APIRateLimit"
+            "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "apiVersions" = mkOption {
+        description = "APIVersion defines a version of an API.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.APIVersion" "apiversions" "APIVersion"
+            "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "accessControlPolicies" = mkOption {
+        description = "AccessControlPolicy defines an access control policy.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.AccessControlPolicy" "accesscontrolpolicies"
+            "AccessControlPolicy"
+            "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "ingressRoutes" = mkOption {
+        description = "IngressRoute is the CRD implementation of a Traefik HTTP Router.";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.IngressRoute" "ingressroutes" "IngressRoute"
+            "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "ingressRouteTCPs" = mkOption {
+        description = "IngressRouteTCP is the CRD implementation of a Traefik TCP Router.";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.IngressRouteTCP" "ingressroutetcps" "IngressRouteTCP"
+            "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "ingressRouteUDPs" = mkOption {
+        description = "IngressRouteUDP is a CRD implementation of a Traefik UDP Router.";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.IngressRouteUDP" "ingressrouteudps" "IngressRouteUDP"
+            "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "managedApplications" = mkOption {
+        description = "ManagedApplication represents a managed application.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.ManagedApplication" "managedapplications"
+            "ManagedApplication"
+            "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "managedSubscriptions" = mkOption {
+        description = "ManagedSubscription defines a Subscription managed by the API manager as the result of a pre-negotiation with its\nAPI consumers. This subscription grant consuming access to a set of APIs to a set of Applications.";
+        type = types.attrsOf (
+          submoduleForDefinition "hub.traefik.io.v1alpha1.ManagedSubscription" "managedsubscriptions"
+            "ManagedSubscription"
+            "hub.traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "middlewares" = mkOption {
+        description = "Middleware is the CRD implementation of a Traefik Middleware.\nMore info: https://doc.traefik.io/traefik/v3.4/middlewares/http/overview/";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.Middleware" "middlewares" "Middleware" "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "middlewareTCPs" = mkOption {
+        description = "MiddlewareTCP is the CRD implementation of a Traefik TCP middleware.\nMore info: https://doc.traefik.io/traefik/v3.4/middlewares/overview/";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.MiddlewareTCP" "middlewaretcps" "MiddlewareTCP"
+            "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "serversTransports" = mkOption {
+        description = "ServersTransport is the CRD implementation of a ServersTransport.\nIf no serversTransport is specified, the default@internal will be used.\nThe default@internal serversTransport is created from the static configuration.\nMore info: https://doc.traefik.io/traefik/v3.4/routing/services/#serverstransport_1";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.ServersTransport" "serverstransports" "ServersTransport"
+            "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "serversTransportTCPs" = mkOption {
+        description = "ServersTransportTCP is the CRD implementation of a TCPServersTransport.\nIf no tcpServersTransport is specified, a default one named default@internal will be used.\nThe default@internal tcpServersTransport can be configured in the static configuration.\nMore info: https://doc.traefik.io/traefik/v3.4/routing/services/#serverstransport_3";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.ServersTransportTCP" "serverstransporttcps"
+            "ServersTransportTCP"
+            "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "tlsOptions" = mkOption {
+        description = "TLSOption is the CRD implementation of a Traefik TLS Option, allowing to configure some parameters of the TLS connection.\nMore info: https://doc.traefik.io/traefik/v3.4/https/tls/#tls-options";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.TLSOption" "tlsoptions" "TLSOption" "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+      "tlsStores" = mkOption {
+        description = "TLSStore is the CRD implementation of a Traefik TLS Store.\nFor the time being, only the TLSStore named default is supported.\nThis means that you cannot have two stores that are named default in different Kubernetes namespaces.\nMore info: https://doc.traefik.io/traefik/v3.4/https/tls/#certificates-stores";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.TLSStore" "tlsstores" "TLSStore" "traefik.io" "v1alpha1"
+        );
+        default = { };
+      };
+      "traefikServices" = mkOption {
+        description = "TraefikService is the CRD implementation of a Traefik Service.\nTraefikService object allows to:\n- Apply weight to Services on load-balancing\n- Mirror traffic on services\nMore info: https://doc.traefik.io/traefik/v3.4/routing/providers/kubernetes-crd/#kind-traefikservice";
+        type = types.attrsOf (
+          submoduleForDefinition "traefik.io.v1alpha1.TraefikService" "traefikservices" "TraefikService"
+            "traefik.io"
+            "v1alpha1"
+        );
+        default = { };
+      };
+    };
   };
 
   config = {
@@ -3755,6 +6990,83 @@ in {
 
     # register resource types
     types = [
+      {
+        name = "aiservices";
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "AIService";
+        attrName = "aiServices";
+      }
+      {
+        name = "apis";
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "API";
+        attrName = "apis";
+      }
+      {
+        name = "apibundles";
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "APIBundle";
+        attrName = "apiBundles";
+      }
+      {
+        name = "apicatalogitems";
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "APICatalogItem";
+        attrName = "apiCatalogItems";
+      }
+      {
+        name = "apiplans";
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "APIPlan";
+        attrName = "apiPlans";
+      }
+      {
+        name = "apiportals";
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "APIPortal";
+        attrName = "apiPortals";
+      }
+      {
+        name = "apiratelimits";
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "APIRateLimit";
+        attrName = "apiRateLimits";
+      }
+      {
+        name = "apiversions";
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "APIVersion";
+        attrName = "apiVersions";
+      }
+      {
+        name = "accesscontrolpolicies";
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "AccessControlPolicy";
+        attrName = "accessControlPolicies";
+      }
+      {
+        name = "managedapplications";
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "ManagedApplication";
+        attrName = "managedApplications";
+      }
+      {
+        name = "managedsubscriptions";
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "ManagedSubscription";
+        attrName = "managedSubscriptions";
+      }
       {
         name = "ingressroutes";
         group = "traefik.io";
@@ -3828,31 +7140,104 @@ in {
     ];
 
     resources = {
-      "traefik.io"."v1alpha1"."IngressRoute" =
-        mkAliasDefinitions options.resources."ingressRoutes";
-      "traefik.io"."v1alpha1"."IngressRouteTCP" =
-        mkAliasDefinitions options.resources."ingressRouteTCPs";
-      "traefik.io"."v1alpha1"."IngressRouteUDP" =
-        mkAliasDefinitions options.resources."ingressRouteUDPs";
-      "traefik.io"."v1alpha1"."Middleware" =
-        mkAliasDefinitions options.resources."middlewares";
-      "traefik.io"."v1alpha1"."MiddlewareTCP" =
-        mkAliasDefinitions options.resources."middlewareTCPs";
+      "hub.traefik.io"."v1alpha1"."AIService" = mkAliasDefinitions options.resources."aiServices";
+      "hub.traefik.io"."v1alpha1"."API" = mkAliasDefinitions options.resources."apis";
+      "hub.traefik.io"."v1alpha1"."APIBundle" = mkAliasDefinitions options.resources."apiBundles";
+      "hub.traefik.io"."v1alpha1"."APICatalogItem" =
+        mkAliasDefinitions
+          options.resources."apiCatalogItems";
+      "hub.traefik.io"."v1alpha1"."APIPlan" = mkAliasDefinitions options.resources."apiPlans";
+      "hub.traefik.io"."v1alpha1"."APIPortal" = mkAliasDefinitions options.resources."apiPortals";
+      "hub.traefik.io"."v1alpha1"."APIRateLimit" = mkAliasDefinitions options.resources."apiRateLimits";
+      "hub.traefik.io"."v1alpha1"."APIVersion" = mkAliasDefinitions options.resources."apiVersions";
+      "hub.traefik.io"."v1alpha1"."AccessControlPolicy" =
+        mkAliasDefinitions
+          options.resources."accessControlPolicies";
+      "traefik.io"."v1alpha1"."IngressRoute" = mkAliasDefinitions options.resources."ingressRoutes";
+      "traefik.io"."v1alpha1"."IngressRouteTCP" = mkAliasDefinitions options.resources."ingressRouteTCPs";
+      "traefik.io"."v1alpha1"."IngressRouteUDP" = mkAliasDefinitions options.resources."ingressRouteUDPs";
+      "hub.traefik.io"."v1alpha1"."ManagedApplication" =
+        mkAliasDefinitions
+          options.resources."managedApplications";
+      "hub.traefik.io"."v1alpha1"."ManagedSubscription" =
+        mkAliasDefinitions
+          options.resources."managedSubscriptions";
+      "traefik.io"."v1alpha1"."Middleware" = mkAliasDefinitions options.resources."middlewares";
+      "traefik.io"."v1alpha1"."MiddlewareTCP" = mkAliasDefinitions options.resources."middlewareTCPs";
       "traefik.io"."v1alpha1"."ServersTransport" =
-        mkAliasDefinitions options.resources."serversTransports";
+        mkAliasDefinitions
+          options.resources."serversTransports";
       "traefik.io"."v1alpha1"."ServersTransportTCP" =
-        mkAliasDefinitions options.resources."serversTransportTCPs";
-      "traefik.io"."v1alpha1"."TLSOption" =
-        mkAliasDefinitions options.resources."tlsOptions";
-      "traefik.io"."v1alpha1"."TLSStore" =
-        mkAliasDefinitions options.resources."tlsStores";
-      "traefik.io"."v1alpha1"."TraefikService" =
-        mkAliasDefinitions options.resources."traefikServices";
+        mkAliasDefinitions
+          options.resources."serversTransportTCPs";
+      "traefik.io"."v1alpha1"."TLSOption" = mkAliasDefinitions options.resources."tlsOptions";
+      "traefik.io"."v1alpha1"."TLSStore" = mkAliasDefinitions options.resources."tlsStores";
+      "traefik.io"."v1alpha1"."TraefikService" = mkAliasDefinitions options.resources."traefikServices";
     };
 
     # make all namespaced resources default to the
     # application's namespace
     defaults = [
+      {
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "AIService";
+        default.metadata.namespace = lib.mkDefault config.namespace;
+      }
+      {
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "API";
+        default.metadata.namespace = lib.mkDefault config.namespace;
+      }
+      {
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "APIBundle";
+        default.metadata.namespace = lib.mkDefault config.namespace;
+      }
+      {
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "APICatalogItem";
+        default.metadata.namespace = lib.mkDefault config.namespace;
+      }
+      {
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "APIPlan";
+        default.metadata.namespace = lib.mkDefault config.namespace;
+      }
+      {
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "APIPortal";
+        default.metadata.namespace = lib.mkDefault config.namespace;
+      }
+      {
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "APIRateLimit";
+        default.metadata.namespace = lib.mkDefault config.namespace;
+      }
+      {
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "APIVersion";
+        default.metadata.namespace = lib.mkDefault config.namespace;
+      }
+      {
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "ManagedApplication";
+        default.metadata.namespace = lib.mkDefault config.namespace;
+      }
+      {
+        group = "hub.traefik.io";
+        version = "v1alpha1";
+        kind = "ManagedSubscription";
+        default.metadata.namespace = lib.mkDefault config.namespace;
+      }
       {
         group = "traefik.io";
         version = "v1alpha1";
