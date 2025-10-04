@@ -120,120 +120,25 @@ let
   } cfg.values;
 in
 {
-  options.monitoring.uptime-kuma = with lib; {
-    enable = mkOption {
-      type = types.bool;
-      default = false;
-      description = "Enable Uptime Kuma via Helm";
-    };
-
-    domain = mkOption {
+  options = with lib; {
+    kconf.core.baseDomainX = mkOption {
       type = types.str;
-      default = "uptime.kube.vkm";
-      description = "Domain for Uptime Kuma access";
-    };
-
-    namespace = mkOption {
-      type = types.str;
-      default = "monitoring";
-      description = "Namespace for Uptime Kuma deployment";
-    };
-
-    storage = mkOption {
-      type = types.submodule {
-        options = {
-          enabled = mkOption {
-            type = types.bool;
-            default = true;
-            description = "Enable persistent storage";
-          };
-          size = mkOption {
-            type = types.str;
-            default = "2Gi";
-            description = "Storage size";
-          };
-          className = mkOption {
-            type = types.str;
-            default = "";
-            description = "Storage class name";
-          };
-        };
-      };
-      default = { };
-      description = "Storage configuration";
-    };
-
-    ingress = mkOption {
-      type = types.submodule {
-        options = {
-          enabled = mkOption {
-            type = types.bool;
-            default = true;
-            description = "Enable ingress";
-          };
-          className = mkOption {
-            type = types.str;
-            default = "nginx";
-            description = "Ingress class";
-          };
-          annotations = mkOption {
-            type = types.attrsOf types.str;
-            default = {
-              "nginx.ingress.kubernetes.io/proxy-read-timeout" = "3600";
-              "nginx.ingress.kubernetes.io/proxy-send-timeout" = "3600";
-              "nginx.ingress.kubernetes.io/server-snippets" = ''
-                location / {
-                  proxy_set_header Upgrade $http_upgrade;
-                  proxy_set_header Connection "upgrade";
-                }
-              '';
-            };
-            description = "Ingress annotations";
-          };
-          tls = mkOption {
-            type = types.submodule {
-              options = {
-                enabled = mkOption {
-                  type = types.bool;
-                  default = true;
-                  description = "Enable TLS";
-                };
-                secretName = mkOption {
-                  type = types.str;
-                  default = "uptime-kuma-tls";
-                  description = "TLS secret name";
-                };
-              };
-            };
-            default = { };
-            description = "TLS configuration";
-          };
-        };
-      };
-      default = { };
-      description = "Ingress configuration";
-    };
-
-    values = mkOption {
-      type = types.attrsOf types.anything;
-      default = { };
-      description = "Extra Helm values for Uptime Kuma";
     };
   };
 
-  config = lib.mkIf cfg.enable {
-    nixidy.applicationImports = [ ./generated.nix ];
+  # config = lib.mkIf cfg.enable {
+  #   nixidy.applicationImports = [ ./generated.nix ];
 
-    applications.uptime-kuma = {
-      inherit namespace;
-      createNamespace = true;
+  #   applications.uptime-kuma = {
+  #     inherit namespace;
+  #     createNamespace = true;
 
-      helm.releases.uptime-kuma = {
-        chart = charts.uptime-kuma.uptime-kuma;
-        inherit values;
-      };
+  #     helm.releases.uptime-kuma = {
+  #       chart = charts.uptime-kuma.uptime-kuma;
+  #       inherit values;
+  #     };
 
-      resources = { };
-    };
-  };
+  #     resources = { };
+  #   };
+  # };
 }

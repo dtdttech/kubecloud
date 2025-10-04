@@ -5,7 +5,7 @@
   ...
 }:
 let
-  cfg = config.networking.cilium;
+  cfg = config.kconf.core.modules.cilium;
 
   namespace = "kube-system";
 
@@ -48,7 +48,7 @@ let
   } cfg.values;
 in
 {
-  options.networking.cilium = with lib; {
+  options.kconf.core.modules.cilium = with lib; {
     enable = mkOption {
       type = types.bool;
       default = true;
@@ -264,13 +264,13 @@ in
     };
 
     # Set resource exclusions in argocd
-    services.argocd.values.configs.cm."resource.exclusions" = ''
-      - apiGroups:
-        - cilium.io
-        kinds:
-        - CiliumIdentity
-        clusters:
-        - "*"
-    '';
+    # services.argocd.values.configs.cm."resource.exclusions" = ''
+    #   - apiGroups:
+    #     - cilium.io
+    #     kinds:
+    #     - CiliumIdentity
+    #     clusters:
+    #     - "*"
+    # '';
   };
 }

@@ -2,40 +2,34 @@
 {
   imports = [
     # ./argocd
-    # ./cilium
-    ./storage
-    ./secrets
-    ./nginx-ingress
-    ./external-dns
-    ./external-secrets # Keep for backward compatibility, but new external secrets config in ./secrets/external
-    ./prometheus
-    ./grafana
+    ./cilium
+    # ./storage
+    # ./secrets
+    # ./nginx-ingress
+    # ./external-dns
+    # ./external-secrets # Keep for backward compatibility, but new external secrets config in ./secrets/external
+    # ./prometheus
+    # ./grafana
     # ./nextcloud
-    ./passbolt
-    ./librebooking
-    ./bookstack
-    ./keycloak
-    ./acme-dns
-    ./zammad
-    ./cert-manager
-    ./github-runner
-    ./nginx
-    ./samba
-    ./coredns
-    ./uptime-kuma
-    ./docker-registry
+    # ./passbolt
+    # ./librebooking
+    # ./bookstack
+    # ./keycloak
+    # ./acme-dns
+    # ./zammad
+    # ./cert-manager
+    # ./github-runner
+    # ./samba
+    # ./coredns
+    # ./uptime-kuma
+    # ./docker-registry
     # ./ceph-csi  # Moved to ./storage/ceph
+    ./test-module
   ];
   options = with lib; {
-    networking.domain = mkOption {
+    kconf.core.baseDomain = mkOption {
       type = types.str;
     };
-    # Allow unknown 'services' option to satisfy generated modules
-    # services = mkOption {
-    #   type = types.attrsOf types.anything;
-    #   default = {};
-    #   description = "Dummy catch-all for generated services option.";
-    # };
   };
 
   config = {
